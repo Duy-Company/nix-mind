@@ -4,10 +4,32 @@ Nix Mind exposes a local stdio MCP server from its executable. It connects to th
 
 ## Connect
 
-1. Open **Nix Mind**.
-2. Click **MCP** in the bottom toolbar, or **MCP → MCP Settings…**.
-3. Enable **Local MCP** and use **Copy MCP configuration**.
-4. Add that configuration to an MCP client supporting local stdio servers. Keep Nix Mind open.
+1. Open **Nix Mind** and click **MCP** in the bottom toolbar.
+2. Enable **Local MCP** and select your client format.
+3. Click **Copy MCP configuration** and merge the entry into that client's configuration.
+4. Keep Nix Mind open while the client works with your maps.
+
+### VS Code
+
+Select **VS Code** in Nix Mind. In VS Code, use **MCP: Open User Configuration** or a workspace `.vscode/mcp.json`. Merge `nix-mind` directly into its top-level `servers` object:
+
+```json
+{
+  "servers": {
+    "nix-mind": {
+      "type": "stdio",
+      "command": "/Applications/Nix Mind.app/Contents/MacOS/Nix Mind",
+      "args": ["--mcp"]
+    }
+  }
+}
+```
+
+Do not nest `mcpServers` inside `servers`. Nix Mind is a local **stdio** executable, not an HTTP endpoint. After saving, start **nix-mind** from the configuration's Start action or **MCP: List Servers**. A working connection shows **Running** and **14 tools**. See the [VS Code MCP documentation](https://code.visualstudio.com/docs/agent-customization/mcp-servers) and [VS Code example](mcp-config.vscode.example.json).
+
+### Other clients using mcpServers
+
+Select **Other clients (mcpServers)** in Nix Mind:
 
 ```json
 {
@@ -20,7 +42,11 @@ Nix Mind exposes a local stdio MCP server from its executable. It connects to th
 }
 ```
 
-Use the actual path copied by the app or `mcp-config.example.json` (adjust the path if needed). Moving the app requires updating the client path. The app does not configure clients automatically or call a model itself; the client controls whether map data goes to a remote provider.
+Use the actual executable path copied by the app. The examples assume the app is installed in `/Applications`. Moving the app requires updating the path. The app does not configure clients automatically or call a model itself; the client controls whether map data goes to a remote provider.
+
+### Troubleshooting file:///undefined
+
+In VS Code this can happen when an entry has neither a launch command nor an HTTP URL, for example when a complete `mcpServers` wrapper was pasted inside `servers`. Replace that malformed wrapper with the direct `nix-mind` entry above and `type: stdio`. Restart the Nix Mind server in VS Code. Do not change it to HTTP or supply a `file://` URL.
 
 Protocol revision: **2025-11-25**, also negotiating 2025-06-18, 2025-03-26 and 2024-11-05. Transport: newline-delimited JSON-RPC 2.0 over stdin/stdout. Diagnostics stay off stdout.
 

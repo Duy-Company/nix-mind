@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "nix-mind": {
+      "type": "stdio",
+      "command": "/Applications/Nix Mind.app/Contents/MacOS/Nix Mind",
+      "args": ["--mcp"]
+    }
+  }
+}

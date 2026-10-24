@@ -35,7 +35,7 @@ def patch(context,ops):
 
 try:
     hello=rpc('initialize',{'protocolVersion':'2025-11-25','capabilities':{},'clientInfo':{'name':'nixmind-workbook-tests','version':'2'}})
-    check(hello['serverInfo']['version']=='1.0.0','MCP initializes as version 1.0')
+    check(hello['serverInfo']['version']=='1.0.1','MCP initializes as version 1.0.1')
     process.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n');process.stdin.flush()
     check(len(rpc('tools/list')['tools'])==14,'All 14 MCP tools expose schemas')
     check('style' in rpc('resources/read',{'uri':'nixmind://guide'})['contents'][0]['text'],'Guide explains node style editing')

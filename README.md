@@ -17,7 +17,7 @@ Nix Mind is built with **Swift, SwiftUI, and AppKit**. Your maps are local files
 
 A `.zip` is also available: extract it, then move **Nix Mind.app** into Applications. Each release includes `SHA256SUMS.txt` for checking the downloads.
 
-**Version 1.0 is ad-hoc signed, not Developer ID signed or notarized.** macOS may block the first launch. If you trust this release, follow Apple's [instructions for opening an app from an unidentified developer](https://support.apple.com/en-us/102445): after attempting to open it, go to **System Settings → Privacy & Security → Open Anyway**, if that option is offered. No system-wide security changes are needed.
+**These releases are ad-hoc signed, not Developer ID signed or notarized.** macOS may block the first launch. If you trust this release, follow Apple's [instructions for opening an app from an unidentified developer](https://support.apple.com/en-us/102445): after attempting to open it, go to **System Settings → Privacy & Security → Open Anyway**, if that option is offered. No system-wide security changes are needed.
 
 ## Features
 
@@ -73,13 +73,13 @@ There is no separate limit on direct root children. Document safeguards are 50,0
 ## Connect an AI client with MCP
 
 1. Open Nix Mind and click **MCP** in the bottom toolbar.
-2. Keep **Local MCP** enabled and click **Copy MCP configuration**.
+2. Keep **Local MCP** enabled, select **VS Code** or **Other clients (mcpServers)**, and click **Copy MCP configuration**.
 3. Add the configuration to a client that supports local stdio MCP servers.
 4. Keep Nix Mind open while the client works with your maps.
 
 The server uses a private Unix socket under your macOS account, with no TCP listener. Nix Mind itself does not call an AI model. Your client decides whether map data is sent to a remote provider. Disable Local MCP in the same settings to stop access.
 
-See [MCP.md](MCP.md) for tools and the editing contract, or start with [mcp-config.example.json](mcp-config.example.json). If you move the app, copy its configuration again so the executable path stays correct.
+See [MCP.md](MCP.md) for tools and the editing contract, or start with the [VS Code example](mcp-config.vscode.example.json) or [mcpServers example](mcp-config.example.json). VS Code uses a top-level `servers` object with `type: "stdio"`; do not nest `mcpServers` inside it. If you move the app, copy its configuration again so the executable path stays correct.
 
 ## Build from source
 
@@ -119,7 +119,7 @@ The packaged downloads appear in `dist/`.
 python3 scripts/test-mcp.py
 ```
 
-The current suite has 44 core checks, 29 native editor checks, and 31 live MCP checks. MCP tests create their own files under `build/`; they do not edit existing documents. Automated checks do not replace visual and gesture testing on every supported macOS version.
+The current suite has 51 core checks, 29 native editor checks, and 31 live MCP checks. MCP tests create their own files under `build/`; they do not edit existing documents. Automated checks do not replace visual and gesture testing on every supported macOS version.
 
 [GitHub Actions](https://github.com/Duy-Company/nix-mind/actions) runs tests, builds a universal app, verifies its ad-hoc signature and architectures, exercises MCP against the built app, and packages downloads on pushes and pull requests to `main`. Pushing a version tag such as `v1.0` publishes a GitHub Release only after these checks pass. The tag must match the app version and have a corresponding file in `release-notes/`.
 

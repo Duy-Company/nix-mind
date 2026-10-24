@@ -5,6 +5,7 @@ struct MCPSettings: View {
     @ObservedObject private var mcp = MCPState.shared
     @Environment(\.dismiss) private var dismiss
     @State private var copied = false
+    @State private var client = MCPClientFormat.vscode
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
@@ -22,11 +23,16 @@ struct MCPSettings: View {
             Text("MCP clients can read and edit topics, format nodes, manage sheets, and save or export files. Changes appear in the app and support Undo.")
                 .font(.system(size: 12)).foregroundStyle(.secondary).lineSpacing(3)
             Text("CLIENT CONFIGURATION").font(.system(size: 10, weight: .semibold)).tracking(1.3).foregroundStyle(.secondary)
+            Picker("Client", selection: $client) {
+                ForEach(MCPClientFormat.allCases) { Text($0.rawValue).tag($0) }
+            }.onChange(of: client) { _, _ in copied = false }.accessibilityLabel("MCP client format")
+            Text(client.instructions).font(.system(size: 11)).foregroundStyle(.secondary)
+            Text("Transport: stdio · Launch the executable with --mcp. No HTTP URL is needed.").font(.system(size: 11)).foregroundStyle(.secondary)
             ScrollView([.horizontal, .vertical]) {
-                Text(mcp.configuration).font(.system(size: 11, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(14)
+                Text(mcp.configuration(for: client)).font(.system(size: 11, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(14)
             }.frame(height: 180).background(Color.black.opacity(0.035), in: RoundedRectangle(cornerRadius: 10))
             HStack {
-                Button { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(mcp.configuration, forType: .string); copied = true } label: { Label(copied ? "Configuration copied" : "Copy MCP configuration", systemImage: "doc.on.doc") }.buttonStyle(.borderedProminent).tint(Color(nsColor: Palette.purple))
+                Button { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(mcp.configuration(for: client), forType: .string); copied = true } label: { Label(copied ? "Configuration copied" : "Copy MCP configuration", systemImage: "doc.on.doc") }.buttonStyle(.borderedProminent).tint(Color(nsColor: Palette.purple))
                 Spacer()
             }
             Text("Keep Nix Mind open while your client is connected. The local connection uses a private Unix socket on this Mac.").font(.system(size: 11)).foregroundStyle(.secondary)

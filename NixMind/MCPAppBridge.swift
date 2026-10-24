@@ -19,9 +19,9 @@ import Combine
     }
     func stop() { service.stop(); running = false }
     func activity(_ text: String) { lastActivity = text }
-    var configuration: String {
+    func configuration(for format: MCPClientFormat) -> String {
         let executable = Bundle.main.executableURL?.path ?? "/Applications/Nix Mind.app/Contents/MacOS/Nix Mind"
-        return (try? AIMap.json(["mcpServers": ["nix-mind": ["command": executable, "args": ["--mcp"]]]])) ?? ""
+        return MCPConfiguration.json(executable: executable, format: format)
     }
 }
 
@@ -57,7 +57,7 @@ import Combine
     static func handle(_ request: [String: Any]) async throws -> [String: Any] {
         guard MCPState.shared.enabled else { throw AIError("Local MCP is disabled in Nix Mind.") }
         let action = request["action"] as? String ?? ""
-        if action == "ping" { return ["app": "Nix Mind", "version": "1.0", "executable": Bundle.main.executableURL?.path ?? ""] }
+        if action == "ping" { return ["app": "Nix Mind", "version": "1.0.1", "executable": Bundle.main.executableURL?.path ?? ""] }
         if action == "list_documents" {
             MCPState.shared.activity("Client read open documents")
             return ["documents": NSDocumentController.shared.documents.compactMap { ($0 as? MapDocument).map(summary) }]

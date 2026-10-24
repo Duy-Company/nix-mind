@@ -50,7 +50,7 @@ enum MCPServer {
                     initialized = true
                     result = ["protocolVersion": supportedVersions.contains(requested) ? requested : protocolVersion,
                               "capabilities": ["tools": ["listChanged": false], "resources": ["subscribe": false, "listChanged": false], "prompts": ["listChanged": false]],
-                              "serverInfo": ["name": "nix-mind", "version": "1.0.0"], "instructions": instructions]
+                              "serverInfo": ["name": "nix-mind", "version": "1.0.1"], "instructions": instructions]
                 } else if method == "ping" { result = [:] }
                 else if !initialized {
                     send(["jsonrpc": "2.0", "id": requestID, "error": ["code": -32000, "message": "Initialize first."]]); continue

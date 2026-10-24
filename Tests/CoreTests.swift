@@ -21,6 +21,18 @@ import AppKit
         a.activeSheetID == b.activeSheetID && a.sheets.count == b.sheets.count && zip(a.sheets,b.sheets).allSatisfy { x,y in x.id == y.id && x.title == y.title && sameMap(x.map,y.map) }
     }
     static func main() throws {
+        let executable = "/Applications/Nix Mind.app/Contents/MacOS/Nix Mind"
+        for format in MCPClientFormat.allCases {
+            let text = MCPConfiguration.json(executable: executable, format: format)
+            let object = try JSONSerialization.jsonObject(with: Data(text.utf8)) as! [String: Any]
+            let key = format == .vscode ? "servers" : "mcpServers"
+            let servers = object[key] as! [String: [String: Any]]
+            check(servers.count == 1 && servers["nix-mind"] != nil, "\(format.rawValue) puts the server directly in \(key)")
+            let entry = servers["nix-mind"]!
+            check(entry["command"] as? String == executable && entry["args"] as? [String] == ["--mcp"], "\(format.rawValue) preserves executable paths with spaces")
+            check(entry["url"] == nil && object[format == .vscode ? "mcpServers" : "servers"] == nil, "\(format.rawValue) does not nest another client format or invent an HTTP URL")
+            if format == .vscode { check(entry["type"] as? String == "stdio", "VS Code explicitly launches a stdio server") }
+        }
         var map = MindMap.blank(); let root = map.root.id
         check(map.topics.count == 1, "New map contains one central topic")
         for _ in 0..<120 { _ = map.addChild(to: root)! }
