@@ -32,7 +32,7 @@ import AppKit
         item(file, "Save", #selector(NSDocument.save(_:)), "s")
         item(file, "Save As…", #selector(NSDocument.saveAs(_:)), "s", [.command, .shift])
         file.addItem(.separator())
-        item(file, "Export Xmind workbook (.xmind)…", #selector(MapDocument.exportXmind(_:)))
+        item(file, "Export mind map archive…", #selector(MapDocument.exportArchive(_:)))
         item(file, "Export current sheet (.mm)…", #selector(MapDocument.exportFreeMind(_:)))
         file.addItem(.separator()); item(file, "Close", #selector(NSWindow.performClose(_:)), "w")
         let edit = section("Edit")

@@ -58,7 +58,7 @@ enum AIMap {
     static func object(_ value: some Encodable) throws -> Any { try JSONSerialization.jsonObject(with: JSONEncoder().encode(value)) }
     static func json(_ object: Any) throws -> String { String(data: try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]), encoding: .utf8)! }
     static func context(_ map: MindMap) throws -> [String: Any] {
-        ["version": 1, "documentID": map.root.id, "baseFingerprint": fingerprint(map), "rootID": map.root.id,
+        ["application": "Nix Mind", "version": 1, "documentID": map.root.id, "baseFingerprint": fingerprint(map), "rootID": map.root.id,
          "constraints": ["maxTopics": MindMap.capacity, "maxDepth": 128], "topics": try object(map.topics)]
     }
     static func markdown(_ map: MindMap) -> String {

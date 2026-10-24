@@ -35,12 +35,19 @@ def patch(context,ops):
 
 try:
     hello=rpc('initialize',{'protocolVersion':'2025-11-25','capabilities':{},'clientInfo':{'name':'nixmind-workbook-tests','version':'2'}})
-    check(hello['serverInfo']['version']=='1.0.1','MCP initializes as version 1.0.1')
+    check(hello['serverInfo']['version']=='1.0.2','MCP initializes as version 1.0.2')
     process.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n');process.stdin.flush()
-    check(len(rpc('tools/list')['tools'])==14,'All 14 MCP tools expose schemas')
+    tool_list=rpc('tools/list')
+    check(len(tool_list['tools'])==14,'All 14 MCP tools expose schemas')
+    check(hello['serverInfo']['title']=='Nix Mind' and 'independent native macOS' in hello['instructions'],'MCP identifies the independent Nix Mind app')
+    import re
+    guide=rpc('resources/read',{'uri':'nixmind://guide'})
+    owned_metadata=json.dumps([hello,tool_list,guide])
+    check(not re.search(r'(?<!ni)xmind',owned_metadata,re.IGNORECASE),'Built-in MCP metadata contains only the Nix Mind product identity')
     check('style' in rpc('resources/read',{'uri':'nixmind://guide'})['contents'][0]['text'],'Guide explains node style editing')
     created=tool('create_map',{'title':'Product planning'})
     doc=created['document']['id'];first=created['map']['sheetID'];ctx=created['map'];root_id=ctx['rootID']
+    check(ctx['application']=='Nix Mind','Live sheet context explicitly names Nix Mind')
     args={'document_id':doc,'sheet_id':first}
     check(len(tool('read_map',args)['map']['topics'])==1,'New workbook has one central topic')
     check(len(tool('list_sheets',{'document_id':doc})['sheets'])==1,'New workbook has one sheet')
@@ -92,12 +99,12 @@ try:
     xmind=directory/'Product planning.xmind';tool('export_map',{'document_id':doc,'path':str(xmind)})
     import zipfile
     with zipfile.ZipFile(xmind) as archive: sheets=json.loads(archive.read('content.json'))
-    check(len(sheets)==2,'Xmind export contains both sheets')
+    check(len(sheets)==2,'Map archive export contains both sheets')
     imported=tool('open_map',{'path':str(xmind)})
-    check(imported['document']['sheetCount']==2,'Xmind import recreates multiple sheets in the app')
+    check(imported['document']['sheetCount']==2,'Map archive import recreates multiple sheets in the app')
     imported_first=tool('list_sheets',{'document_id':imported['document']['id']})['sheets'][0]['id']
     roundtrip=tool('read_map',{'document_id':imported['document']['id'],'sheet_id':imported_first})['map']
-    check(next(x for x in roundtrip['topics'] if x['id']=='branch-0')['style']==saved_style,'Xmind import preserves Nix Mind style metadata')
+    check(next(x for x in roundtrip['topics'] if x['id']=='branch-0')['style']==saved_style,'Map archive import preserves Nix Mind style metadata')
     for ext in ['mm','md']:
         path=directory/f'Implementation.{ext}';tool('export_map',{**second_args,'path':str(path)})
         check(path.exists() and path.stat().st_size>60,'Export selected sheet as '+ext)

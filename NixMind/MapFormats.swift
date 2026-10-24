@@ -1,16 +1,16 @@
 import Foundation
 
-// Native files and Xmind preserve the whole workbook. FreeMind is a single-sheet exchange format.
+// Native files and map archives preserve the whole workbook. FreeMind is a single-sheet exchange format.
 enum MapFormats {
     static let nativeType = "com.nixmind.map"
-    static let xmindType = "org.xmind.workbook"
+    static let archiveType = "org.xmind.workbook"
     static let freeMindType = "org.freemind.map"
     static func decode(_ data: Data, type: String) throws -> MindMap { try decodeBook(data, type: type).activeMap }
     static func decodeBook(_ data: Data, type: String) throws -> MindBook {
         guard data.count <= 64_000_000 else { throw MapError.invalid }
         let book: MindBook
         switch type {
-        case xmindType: book = try readXmindBook(data)
+        case archiveType: book = try readArchiveBook(data)
         case freeMindType: book = MindBook(map: try FreeMindReader().read(data))
         default:
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -30,7 +30,7 @@ enum MapFormats {
     static func encodeBook(_ book: MindBook, type: String) throws -> Data {
         try book.validate()
         switch type {
-        case xmindType: return try writeXmindBook(book)
+        case archiveType: return try writeArchiveBook(book)
         case freeMindType: return writeFreeMind(book.activeMap)
         default:
             let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -50,8 +50,8 @@ enum MapFormats {
         try process.run(); let result = output.fileHandleForReading.readDataToEndOfFile(); process.waitUntilExit()
         guard process.terminationStatus == 0 else { throw MapError.archive }; return result
     }
-    static func readXmind(_ data: Data) throws -> MindMap { try readXmindBook(data).activeMap }
-    static func readXmindBook(_ data: Data) throws -> MindBook {
+    static func readArchive(_ data: Data) throws -> MindMap { try readArchiveBook(data).activeMap }
+    static func readArchiveBook(_ data: Data) throws -> MindBook {
         try temporary { directory in
             let archive = directory.appendingPathComponent("map.xmind"); try data.write(to: archive)
             let listing = try run("/usr/bin/unzip", ["-l", archive.path, "content.json"])
@@ -100,8 +100,8 @@ enum MapFormats {
             try book.validate(); return book
         }
     }
-    static func writeXmind(_ map: MindMap) throws -> Data { try writeXmindBook(MindBook(map: map)) }
-    static func writeXmindBook(_ book: MindBook) throws -> Data {
+    static func writeArchive(_ map: MindMap) throws -> Data { try writeArchiveBook(MindBook(map: map)) }
+    static func writeArchiveBook(_ book: MindBook) throws -> Data {
         try temporary { directory in
             let sheets: [[String: Any]] = try book.sheets.map { sheet in
                 let children = sheet.map.adjacency
@@ -121,7 +121,7 @@ enum MapFormats {
                 }
                 return ["id": sheet.id, "class": "sheet", "title": sheet.title, "rootTopic": try object(sheet.map.root), "topicPositioning": "fixed", "nixmind": ["active": sheet.id == book.activeSheetID]]
             }
-            let files: [String: Any] = ["content.json": sheets, "metadata.json": ["creator": ["name": "Nix Mind", "version": "1.0.1"]], "manifest.json": ["file-entries": ["content.json": [:], "metadata.json": [:]]]]
+            let files: [String: Any] = ["content.json": sheets, "metadata.json": ["creator": ["name": "Nix Mind", "version": "1.0.2"]], "manifest.json": ["file-entries": ["content.json": [:], "metadata.json": [:]]]]
             for (name, object) in files { try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]).write(to: directory.appendingPathComponent(name)) }
             let archive = directory.appendingPathComponent("map.xmind")
             try run("/usr/bin/zip", ["-q", archive.path, "content.json", "metadata.json", "manifest.json"], directory: directory)

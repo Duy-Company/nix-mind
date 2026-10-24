@@ -1,6 +1,6 @@
 # Nix Mind local MCP
 
-Nix Mind exposes a local stdio MCP server from its executable. It connects to the running macOS app over a private per-user Unix socket. No TCP port, account, API key or hosted backend is required. The former AI Workspace has been removed.
+Nix Mind is an independent native macOS app. Its executable provides a local stdio MCP server. It connects to the running macOS app over a private per-user Unix socket. No TCP port, account, API key or hosted backend is required. The former AI Workspace has been removed.
 
 ## Connect
 
@@ -59,7 +59,7 @@ Protocol revision: **2025-11-25**, also negotiating 2025-06-18, 2025-03-26 and 2
 | `read_map` | A sheet's topic tree, style, structure, notes, positions, fingerprint and Markdown |
 | `read_topic` | One topic, its ancestors and children |
 | `create_map` | New unsaved workbook |
-| `open_map` | Open `.nixmap`, modern `.xmind` or `.mm` |
+| `open_map` | Open a Nix Mind workbook or supported exchange file |
 | `create_sheet` | Add and activate an empty sheet |
 | `select_sheet` | Activate an existing sheet |
 | `rename_sheet` | Rename without changing the tree |
@@ -67,11 +67,11 @@ Protocol revision: **2025-11-25**, also negotiating 2025-06-18, 2025-03-26 and 2
 | `preview_patch` | Validate changes without editing |
 | `apply_patch` | Apply one atomic, undoable sheet edit |
 | `save_map` | Save the entire workbook as native `.nixmap` |
-| `export_map` | Export `.xmind`, `.nixmap`, `.mm` or `.md` |
+| `export_map` | Export a Nix Mind workbook, mind map archive, FreeMind file, or Markdown outline |
 
 `document_id` is an open-window **session ID**, changing when reopened. If omitted, the current document is used. `sheet_id` is a persistent sheet ID; omit it to use the active sheet. Reading or patching a specified inactive sheet does not switch tabs. A patch's `documentID` is the **root topic ID**, distinct from both tool IDs.
 
-Native/Xmind/Markdown export includes all sheets by default. FreeMind exports the active sheet only. Passing `sheet_id` exports only that sheet for any format. Native saving always saves the whole workbook.
+Native workbook, map archive, and Markdown export includes all sheets by default. FreeMind exports the active sheet only. Passing `sheet_id` exports only that sheet for any format. Native saving always saves the whole workbook.
 
 Paths must be absolute. Unsaved workbooks require a save path. Export to an existing path or save over a different existing file requires `overwrite: true`; saving back to the current native path does not. Save/export only within the user's authorized intent.
 
@@ -151,4 +151,4 @@ The UI owns `/private/tmp/nixmind-<uid>/app.sock`; directory mode `0700`, socket
 python3 scripts/test-mcp.py
 ```
 
-The integration test requires the app and local MCP running. It creates its own workbook and writes artifacts under `build/workbook-smoke-*`. It covers the 14 tools, 24 root branches, partial style changes, inactive-sheet editing, resources, atomic/stale rejection, native save, multi-sheet Xmind import/export, selected-sheet exports and last-sheet protection. Exchange round-trips are verified internally; Xmind desktop fidelity remains unverified.
+The integration test requires the app and local MCP running. It creates its own workbook and writes artifacts under `build/workbook-smoke-*`. It covers the 14 tools, 24 root branches, partial style changes, inactive-sheet editing, resources, atomic/stale rejection, native save, multi-sheet archive import/export, selected-sheet exports and last-sheet protection. Exchange round-trips are verified internally; Visual fidelity in other applications remains unverified.

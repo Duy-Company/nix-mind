@@ -75,13 +75,13 @@ import AppKit
         check(styled.topics[index].font().pointSize == 28, "Selected font size is used by native rendering")
         let fontSize = styled.topics[index].appearance.fontSize; styled.arrange()
         check(styled.topics[index].appearance.fontSize == fontSize, "Auto layout preserves user-selected font size")
-        for type in [MapFormats.nativeType, MapFormats.xmindType, MapFormats.freeMindType] {
+        for type in [MapFormats.nativeType, MapFormats.archiveType, MapFormats.freeMindType] {
             let roundtrip = try MapFormats.decode(MapFormats.encode(styled, type: type), type: type)
             check(sameMap(roundtrip, styled), "\(type): full topic, Unicode, structure and style round-trip")
         }
         var book = MindBook(map: styled)
         let other = MapSheet(title: "Research", map: .blank()); book.sheets.append(other); book.activeSheetID = other.id
-        for type in [MapFormats.nativeType, MapFormats.xmindType] {
+        for type in [MapFormats.nativeType, MapFormats.archiveType] {
             let decoded = try MapFormats.decodeBook(MapFormats.encodeBook(book, type: type), type: type)
             check(sameBook(decoded, book), "\(type): all sheets, names, IDs and active sheet round-trip")
         }
@@ -108,7 +108,7 @@ import AppKit
         invalidStyle = appearance; invalidStyle.borderColor = "not a color"
         rejects("Invalid custom colors are rejected") { try invalidStyle.validate() }
         rejects("Malformed JSON is rejected") { _ = try MapFormats.decodeBook(Data("{}".utf8), type: MapFormats.nativeType) }
-        rejects("Fake Xmind archive is rejected") { _ = try MapFormats.decodeBook(Data("zip?".utf8), type: MapFormats.xmindType) }
+        rejects("Invalid map archive is rejected") { _ = try MapFormats.decodeBook(Data("zip?".utf8), type: MapFormats.archiveType) }
         let aiBase = styled
         let addition = try patch([["action": "addTopic", "id": "mcp-new-root", "parentID": root, "title": "Branch 121", "style": ["fontSize": 24, "bold": true], "structure": "rightToLeft"]], on: aiBase)
         let preview = try AIMap.preview(addition, on: aiBase)
@@ -134,7 +134,7 @@ import AppKit
         let folder = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("build/v2-fixtures")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try MapFormats.encodeBook(book, type: MapFormats.nativeType).write(to: folder.appendingPathComponent("Styled workbook.nixmap"))
-        try MapFormats.encodeBook(book, type: MapFormats.xmindType).write(to: folder.appendingPathComponent("Styled workbook.xmind"))
+        try MapFormats.encodeBook(book, type: MapFormats.archiveType).write(to: folder.appendingPathComponent("Styled workbook.xmind"))
         print("PASS: \(count) checks")
     }
     static func tryDecode(_ data: Data) -> MindMap { try! MapFormats.decode(data, type: MapFormats.freeMindType) }

@@ -60,7 +60,7 @@ import SwiftUI
     @objc func arrangeMap(_ sender: Any?) { store.arrange() }
     @objc func fitMap(_ sender: Any?) { store.canvas?.fit() }
     @objc func centerMap(_ sender: Any?) { store.canvas?.center(on: store.map.root.id) }
-    @objc func exportXmind(_ sender: Any?) { export(type: MapFormats.xmindType, extension: "xmind") }
+    @objc func exportArchive(_ sender: Any?) { export(type: MapFormats.archiveType, extension: "xmind") }
     @objc func exportFreeMind(_ sender: Any?) { export(type: MapFormats.freeMindType, extension: "mm") }
     func export(type: String, extension ext: String) {
         store.canvas?.finishEditing()

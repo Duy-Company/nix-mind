@@ -57,7 +57,7 @@ import Combine
     static func handle(_ request: [String: Any]) async throws -> [String: Any] {
         guard MCPState.shared.enabled else { throw AIError("Local MCP is disabled in Nix Mind.") }
         let action = request["action"] as? String ?? ""
-        if action == "ping" { return ["app": "Nix Mind", "version": "1.0.1", "executable": Bundle.main.executableURL?.path ?? ""] }
+        if action == "ping" { return ["app": "Nix Mind", "version": "1.0.2", "executable": Bundle.main.executableURL?.path ?? ""] }
         if action == "list_documents" {
             MCPState.shared.activity("Client read open documents")
             return ["documents": NSDocumentController.shared.documents.compactMap { ($0 as? MapDocument).map(summary) }]
@@ -74,7 +74,7 @@ import Combine
         }
         if action == "open_map" {
             let url = try path(request)
-            guard let type = ["nixmap": MapFormats.nativeType, "xmind": MapFormats.xmindType, "mm": MapFormats.freeMindType][url.pathExtension.lowercased()] else { throw AIError("Open .nixmap, .xmind or .mm files only.") }
+            guard let type = ["nixmap": MapFormats.nativeType, "xmind": MapFormats.archiveType, "mm": MapFormats.freeMindType][url.pathExtension.lowercased()] else { throw AIError("Open a Nix Mind workbook, compatible mind map archive, or FreeMind file.") }
             if let existing = NSDocumentController.shared.document(for: url) as? MapDocument { existing.showWindows(); return ["document": summary(existing)] }
             let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
             guard (attributes[.size] as? NSNumber)?.intValue ?? Int.max <= 64_000_000 else { throw MapError.invalid }
@@ -135,7 +135,7 @@ import Combine
             if action == "save_map", request["path"] == nil, let current = doc.fileURL { url = current } else { url = try path(request) }
             let ext = url.pathExtension.lowercased()
             if action == "save_map", ext != "nixmap" { throw AIError("save_map requires .nixmap. Use export_map for exchange formats.") }
-            guard ["nixmap", "xmind", "mm", "md"].contains(ext) else { throw AIError("Export to .nixmap, .xmind, .mm or .md only.") }
+            guard ["nixmap", "xmind", "mm", "md"].contains(ext) else { throw AIError("Use a Nix Mind workbook, compatible mind map archive, FreeMind, or Markdown output path.") }
             let currentFile = action == "save_map" && doc.fileURL?.standardizedFileURL == url
             if FileManager.default.fileExists(atPath: url.path), !currentFile, request["overwrite"] as? Bool != true { throw AIError("File exists. Choose another path or explicitly set overwrite=true.") }
             doc.store.canvas?.finishEditing()
@@ -148,7 +148,7 @@ import Combine
             } else {
                 var book = doc.store.workbook
                 if request["sheet_id"] != nil { book.sheets = [try sheet(request, in: doc)]; book.activeSheetID = target.id }
-                let data = ext == "md" ? Data(AIMap.markdown(book).utf8) : try MapFormats.encodeBook(book, type: ["nixmap": MapFormats.nativeType, "xmind": MapFormats.xmindType, "mm": MapFormats.freeMindType][ext]!)
+                let data = ext == "md" ? Data(AIMap.markdown(book).utf8) : try MapFormats.encodeBook(book, type: ["nixmap": MapFormats.nativeType, "xmind": MapFormats.archiveType, "mm": MapFormats.freeMindType][ext]!)
                 try data.write(to: url, options: .atomic)
             }
             MCPState.shared.activity(action == "save_map" ? "Client saved this workbook" : "Client exported this workbook")

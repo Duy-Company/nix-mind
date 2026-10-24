@@ -170,7 +170,7 @@ enum MapError: LocalizedError {
         switch self {
         case .invalid: return "This mind map is invalid or exceeds the document size limits."
         case .unsupported(let detail): return detail
-        case .archive: return "Unable to read or create the Xmind file. Modern JSON-based Xmind files are supported."
+        case .archive: return "Unable to read or create this mind map archive. A modern JSON-based archive is required."
         }
     }
 }

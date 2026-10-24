@@ -3,7 +3,7 @@
 [![macOS CI](https://github.com/Duy-Company/nix-mind/actions/workflows/macos.yml/badge.svg)](https://github.com/Duy-Company/nix-mind/actions/workflows/macos.yml)
 [![Latest release](https://img.shields.io/github/v/release/Duy-Company/nix-mind)](https://github.com/Duy-Company/nix-mind/releases/latest)
 
-A native macOS mind-mapping app for turning ideas into clear, connected plans. Create branches on a free-moving canvas, shape and style your topics, and switch to an editable outline whenever you want to focus on the structure.
+An independent native macOS mind-mapping app for turning ideas into clear, connected plans. Create branches on a free-moving canvas, shape and style your topics, and switch to an editable outline whenever you want to focus on the structure.
 
 Nix Mind is built with **Swift, SwiftUI, and AppKit**. Your maps are local files. There is no account, hosted backend, or built-in AI subscription, and the interface is in English.
 
@@ -29,7 +29,7 @@ A `.zip` is also available: extract it, then move **Nix Mind.app** into Applicat
 - **Multiple sheets in one file.** Create, switch, rename, and remove sheets using tabs at the top of the window.
 - **Mind map and Outliner views.** Switch at the bottom right. Both views edit the same topics; Outliner supports collapsing branches and indenting or outdenting topics.
 - **Local document workflow.** New, Open, Save, Save As, autosave, multiple document windows, and native Undo/Redo.
-- **File exchange.** Import and export modern Xmind and FreeMind maps.
+- **File exchange.** Import and export compatible mind map archives and FreeMind files.
 - **Local MCP for AI clients.** Let an MCP client read and edit topics, formatting, structure, and sheets through 14 local tools, with atomic patches and stale-data checks.
 
 Try [Product Roadmap.nixmap](Examples/Product%20Roadmap.nixmap), a sample workbook with two sheets.
@@ -61,12 +61,12 @@ Double-click a sheet tab, or use its context menu, to rename it. Closing a sheet
 | Format | Use | Sheets |
 | --- | --- | --- |
 | `.nixmap` | Native JSON workbook; preserves topic IDs, tree, positions, typography, appearance, direction, and notes | All sheets |
-| `.xmind` | Modern ZIP/JSON Xmind import and export | All sheets |
+| Mind map archive | ZIP/JSON exchange import and export | All sheets |
 | `.mm` | FreeMind XML import and export | One sheet; export uses the active sheet |
 
-Use **Save** for the native format and **File → Export…** for exchange formats. Imported Xmind and FreeMind files open as unsaved native copies, leaving the original files intact. Older single-sheet `.nixmap` files remain readable.
+Use **Save** for the native format and **File → Export…** for exchange formats. Imported archive and FreeMind files open as unsaved native copies, leaving the original files intact. Older single-sheet `.nixmap` files remain readable.
 
-Xmind support covers text topics, hierarchy, and plain-text notes. Legacy `content.xml`, encrypted files, attachments, floating topics, relationships, summaries, and boundaries are not supported. Nix Mind's own style metadata survives internal exchange round-trips; other applications may rearrange topics or ignore that metadata. Visual fidelity in Xmind desktop has not been verified. Keep the original file when exchanging maps.
+Archive support covers text topics, hierarchy, and plain-text notes. Legacy `content.xml`, encrypted files, attachments, floating topics, relationships, summaries, and boundaries are not supported. Nix Mind's own style metadata survives internal exchange round-trips; other applications may rearrange topics or ignore that metadata. Visual fidelity in other mind-mapping applications has not been verified. Keep the original file when exchanging maps.
 
 There is no separate limit on direct root children. Document safeguards are 50,000 topics per sheet, fewer than 128 levels, up to 500 sheets, and a 64 MB input limit. Interactive performance at those maximum sizes has not been benchmarked.
 
@@ -119,7 +119,7 @@ The packaged downloads appear in `dist/`.
 python3 scripts/test-mcp.py
 ```
 
-The current suite has 51 core checks, 29 native editor checks, and 31 live MCP checks. MCP tests create their own files under `build/`; they do not edit existing documents. Automated checks do not replace visual and gesture testing on every supported macOS version.
+The current suite has 51 core checks, 29 native editor checks, and 34 live MCP checks. MCP tests create their own files under `build/`; they do not edit existing documents. Automated checks do not replace visual and gesture testing on every supported macOS version.
 
 [GitHub Actions](https://github.com/Duy-Company/nix-mind/actions) runs tests, builds a universal app, verifies its ad-hoc signature and architectures, exercises MCP against the built app, and packages downloads on pushes and pull requests to `main`. Pushing a version tag such as `v1.0` publishes a GitHub Release only after these checks pass. The tag must match the app version and have a corresponding file in `release-notes/`.
 
