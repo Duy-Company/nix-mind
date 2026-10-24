@@ -1,0 +1,25 @@
+# Generated builds and release downloads
+build/
+build-*/
+dist/
+
+# macOS and personal Xcode settings
+.DS_Store
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+# Machine-local configuration and credentials
+mcp-config.json
+.env
+.env.*
+.codex/
+.agents/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Keep only the curated, distributable example
+Examples/*
+!Examples/Product Roadmap.nixmap

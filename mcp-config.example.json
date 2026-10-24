@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "nix-mind": {
+      "command": "/Applications/Nix Mind.app/Contents/MacOS/Nix Mind",
+      "args": ["--mcp"]
+    }
+  }
+}

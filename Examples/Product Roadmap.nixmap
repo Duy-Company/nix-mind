@@ -1,0 +1,210 @@
+{
+  "activeSheetID" : "2F0D604A-46DF-4C18-90B9-6FD346A465FA",
+  "sheets" : [
+    {
+      "id" : "2255F329-8536-4D82-A116-DF5FF758AAC9",
+      "map" : {
+        "topics" : [
+          {
+            "color" : 0,
+            "id" : "33890ECC-C1DC-4011-847E-4C72F2084CB8",
+            "note" : "",
+            "style" : {
+              "alignment" : "center",
+              "bold" : true,
+              "borderWidth" : 1,
+              "fillColor" : "#D677BAFF",
+              "fontFamily" : "System",
+              "fontSize" : 21,
+              "italic" : false,
+              "shape" : "rounded",
+              "strikethrough" : false,
+              "underline" : false
+            },
+            "title" : "Your next big idea",
+            "x" : 0,
+            "y" : 0
+          },
+          {
+            "color" : 0,
+            "id" : "branch-0",
+            "note" : "",
+            "parentID" : "33890ECC-C1DC-4011-847E-4C72F2084CB8",
+            "slot" : 0,
+            "structure" : "automatic",
+            "style" : {
+              "alignment" : "center",
+              "bold" : false,
+              "borderWidth" : 1,
+              "fontFamily" : "System",
+              "fontSize" : 16,
+              "italic" : false,
+              "shape" : "rounded",
+              "strikethrough" : false,
+              "underline" : false
+            },
+            "title" : "Discovery",
+            "x" : 304,
+            "y" : -132
+          },
+          {
+            "color" : 1,
+            "id" : "branch-1",
+            "note" : "Sketch alternatives, compare options, and choose the next step.",
+            "parentID" : "33890ECC-C1DC-4011-847E-4C72F2084CB8",
+            "slot" : 1,
+            "title" : "Design",
+            "x" : -304,
+            "y" : -132
+          },
+          {
+            "color" : 2,
+            "id" : "branch-2",
+            "note" : "",
+            "parentID" : "33890ECC-C1DC-4011-847E-4C72F2084CB8",
+            "slot" : 2,
+            "title" : "Build",
+            "x" : 304,
+            "y" : 44
+          },
+          {
+            "color" : 3,
+            "id" : "branch-3",
+            "note" : "",
+            "parentID" : "33890ECC-C1DC-4011-847E-4C72F2084CB8",
+            "slot" : 3,
+            "title" : "Inspiration",
+            "x" : -304,
+            "y" : -44
+          },
+          {
+            "color" : 4,
+            "id" : "branch-4",
+            "note" : "",
+            "parentID" : "33890ECC-C1DC-4011-847E-4C72F2084CB8",
+            "slot" : 4,
+            "title" : "People",
+            "x" : 304,
+            "y" : 132
+          },
+          {
+            "color" : 5,
+            "id" : "branch-5",
+            "note" : "",
+            "parentID" : "33890ECC-C1DC-4011-847E-4C72F2084CB8",
+            "slot" : 5,
+            "title" : "Next steps",
+            "x" : -304,
+            "y" : 44
+          },
+          {
+            "color" : 0,
+            "id" : "branch-6",
+            "note" : "",
+            "parentID" : "33890ECC-C1DC-4011-847E-4C72F2084CB8",
+            "slot" : 6,
+            "title" : "Research",
+            "x" : 304,
+            "y" : 220
+          },
+          {
+            "color" : 1,
+            "id" : "branch-7",
+            "note" : "",
+            "parentID" : "33890ECC-C1DC-4011-847E-4C72F2084CB8",
+            "slot" : 7,
+            "title" : "Audience",
+            "x" : -304,
+            "y" : 132
+          },
+          {
+            "color" : 0,
+            "id" : "1FADB15E-C55F-45DA-8659-D0487D0528C9",
+            "note" : "",
+            "parentID" : "branch-0",
+            "structure" : "rightToLeft",
+            "title" : "New idea",
+            "x" : 562,
+            "y" : -220
+          },
+          {
+            "color" : 1,
+            "id" : "7F84A7A2-B618-41BC-9B1E-BEE093E1CC96",
+            "note" : "hey\n",
+            "parentID" : "branch-0",
+            "title" : "jkhkhk",
+            "x" : 562,
+            "y" : -132
+          },
+          {
+            "color" : 0,
+            "id" : "7AB9E971-1CE4-4B13-A9CD-351BC3FF15A1",
+            "note" : "",
+            "parentID" : "branch-0",
+            "title" : "New idea",
+            "x" : 562,
+            "y" : -44
+          },
+          {
+            "color" : 0,
+            "id" : "94684623-BEA0-4E00-B030-DB7F841329A2",
+            "note" : "",
+            "parentID" : "7AB9E971-1CE4-4B13-A9CD-351BC3FF15A1",
+            "title" : "New idea",
+            "x" : 820,
+            "y" : -44
+          },
+          {
+            "color" : 0,
+            "id" : "F2F5B85B-31C2-4923-B32E-F9ADDC9DB6AA",
+            "note" : "",
+            "parentID" : "94684623-BEA0-4E00-B030-DB7F841329A2",
+            "title" : "New idea",
+            "x" : 1078,
+            "y" : -44
+          }
+        ],
+        "version" : 1
+      },
+      "title" : "Ideas"
+    },
+    {
+      "id" : "2F0D604A-46DF-4C18-90B9-6FD346A465FA",
+      "map" : {
+        "topics" : [
+          {
+            "color" : 0,
+            "id" : "C2DA7D91-1148-466C-8B31-3FFC68EE2B63",
+            "note" : "",
+            "title" : "Implementation plan",
+            "x" : 0,
+            "y" : 0
+          },
+          {
+            "color" : 0,
+            "id" : "step-1",
+            "note" : "",
+            "parentID" : "C2DA7D91-1148-466C-8B31-3FFC68EE2B63",
+            "slot" : 0,
+            "title" : "Build a native editor",
+            "x" : 336.41484451293945,
+            "y" : 0
+          },
+          {
+            "color" : 1,
+            "id" : "step-2",
+            "note" : "",
+            "parentID" : "C2DA7D91-1148-466C-8B31-3FFC68EE2B63",
+            "slot" : 1,
+            "title" : "Verify the details",
+            "x" : -325.59062576293945,
+            "y" : 0
+          }
+        ],
+        "version" : 1
+      },
+      "title" : "Implementation"
+    }
+  ],
+  "version" : 2
+}
