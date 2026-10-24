@@ -47,6 +47,9 @@ jobs:
       - name: Run native editor checks
         run: ./scripts/test-editor.sh
 
+      - name: Run canvas and drag checks
+        run: ./scripts/test-canvas.sh
+
       - name: Build, sign, and package
         env:
           RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}

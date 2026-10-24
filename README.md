@@ -26,6 +26,7 @@ A `.zip` is also available: extract it, then move **Nix Mind.app** into Applicat
 - **Topic formatting.** Choose an installed font, font size, bold, italic, underline, strikethrough, text alignment, and text color.
 - **Node appearance.** Use a rounded rectangle, rectangle, capsule, ellipse, or diamond. Customize fill, border color, and border width, plus branch colors and notes.
 - **Branch direction.** Choose Automatic, Left to right, or Right to left. The layout and topic **+** controls follow the direction.
+- **Resizable side panels.** Drag either divider to make the topic list or inspector wider. Use the left and right sidebar buttons in the header to hide or show each panel.
 - **Multiple sheets in one file.** Create, switch, rename, and remove sheets using tabs at the top of the window.
 - **Mind map and Outliner views.** Switch at the bottom right. Both views edit the same topics; Outliner supports collapsing branches and indenting or outdenting topics.
 - **Local document workflow.** New, Open, Save, Save As, autosave, multiple document windows, and native Undo/Redo.
@@ -46,6 +47,8 @@ Select a topic to reveal its **+** controls. The upper control adds a child; the
 | Add child / sibling on the canvas | `Tab` / `Return` |
 | Delete the selected branch on the canvas | `Delete` |
 | Move a branch | Drag its topic |
+| Resize the topic list or inspector | Drag its divider next to the canvas |
+| Hide / show a side panel | Left / right sidebar button in the header |
 | Pan | Drag the background, or hold `Space` and drag |
 | Zoom | Trackpad pinch, or `⌘` + scroll |
 | Fit / center on root | `⌘0` / `⌘1` |
@@ -115,11 +118,15 @@ The packaged downloads appear in `dist/`.
 ```sh
 ./scripts/test.sh          # Model, layout, file formats, and MCP patches
 ./scripts/test-editor.sh   # Native editor state, styles, sheet operations, and Undo/Redo
+./scripts/test-canvas.sh   # Indexed culling, render caches, drag preview, and Undo
+# Optional: run canvas checks and a local benchmark on your own map
+./scripts/test-canvas.sh /path/to/map.nixmap
+./scripts/benchmark-canvas.sh /path/to/map.nixmap
 # With the app running and Local MCP enabled:
 python3 scripts/test-mcp.py
 ```
 
-The current suite has 51 core checks, 29 native editor checks, and 34 live MCP checks. MCP tests create their own files under `build/`; they do not edit existing documents. Automated checks do not replace visual and gesture testing on every supported macOS version.
+The suites cover the model and file formats, native editing, canvas indexing and caching, branch drags and Undo, and live MCP integration. MCP tests create their own files under `build/`; they do not edit existing documents. Automated checks do not replace visual and gesture testing on every supported macOS version.
 
 [GitHub Actions](https://github.com/Duy-Company/nix-mind/actions) runs tests, builds a universal app, verifies its ad-hoc signature and architectures, exercises MCP against the built app, and packages downloads on pushes and pull requests to `main`. Pushing a version tag such as `v1.0` publishes a GitHub Release only after these checks pass. The tag must match the app version and have a corresponding file in `release-notes/`.
 

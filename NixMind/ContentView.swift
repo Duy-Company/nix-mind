@@ -11,20 +11,23 @@ struct ContentView: View {
             Divider()
             SheetTabs(store: store)
             Divider()
-            HStack(spacing: 0) {
-                sidebar.frame(width: 210)
-                Divider()
+            HSplitView {
+                if store.sidebarVisible {
+                    sidebar.frame(minWidth: 180, idealWidth: 230, maxWidth: 600, maxHeight: .infinity)
+                }
                 ZStack(alignment: .bottom) {
                     CanvasHost(store: store).opacity(store.mode == .mindMap ? 1 : 0).allowsHitTesting(store.mode == .mindMap).accessibilityHidden(store.mode != .mindMap).clipped()
                     if store.mode == .outliner { OutlinerView(store: store) }
                     if store.mode == .mindMap {
                         VStack(spacing: 12) {
                             if let toast = store.toast { Text(toast).font(.system(size: 12)).padding(12).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10)) }
-                            canvasControls
+                            CanvasZoomControls(store: store, viewport: store.viewport)
                         }.padding(.bottom, 24)
                     }
-                }.clipped()
-                if store.inspectorVisible { Divider(); NodeInspector(store: store).frame(width: 282) }
+                }.frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity).layoutPriority(1).clipped()
+                if store.inspectorVisible {
+                    NodeInspector(store: store).frame(minWidth: 260, idealWidth: 300, maxWidth: 680, maxHeight: .infinity)
+                }
             }
             Divider()
             footer
@@ -41,13 +44,14 @@ struct ContentView: View {
                 Text("nix mind").font(.system(size: 17, weight: .bold, design: .rounded))
                 Text("A little room for big ideas.").font(.system(size: 10)).foregroundStyle(.secondary)
             }
+            iconButton("sidebar.left", store.sidebarVisible ? "Hide topics sidebar" : "Show topics sidebar") { store.canvas?.finishEditing(); store.sidebarVisible.toggle() }
             Spacer()
             iconButton("arrow.uturn.backward", "Undo ⌘Z") { store.document?.undoManager?.undo() }.disabled(!(store.document?.undoManager?.canUndo ?? false))
             iconButton("arrow.uturn.forward", "Redo ⇧⌘Z") { store.document?.undoManager?.redo() }.disabled(!(store.document?.undoManager?.canRedo ?? false))
             Divider().frame(height: 22).padding(.horizontal, 6)
             Button { store.arrange() } label: { Label("Arrange", systemImage: "arrow.triangle.branch").font(.system(size: 12)) }.buttonStyle(.plain).padding(.horizontal, 8)
             Button { store.addChild() } label: { Label("Add topic", systemImage: "plus").font(.system(size: 12, weight: .medium)).padding(.horizontal, 13).padding(.vertical, 9) }.buttonStyle(.plain).foregroundStyle(accent).background(accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
-            iconButton("sidebar.right", "Toggle inspector") { store.canvas?.finishEditing(); store.inspectorVisible.toggle() }
+            iconButton("sidebar.right", store.inspectorVisible ? "Hide inspector" : "Show inspector") { store.canvas?.finishEditing(); store.inspectorVisible.toggle() }
             Button { store.document?.save(nil) } label: { Label("Save", systemImage: "square.and.arrow.down").font(.system(size: 12, weight: .semibold)).padding(.horizontal, 16).padding(.vertical, 9) }.buttonStyle(.plain).foregroundStyle(.white).background(accent, in: RoundedRectangle(cornerRadius: 8))
         }.padding(.horizontal, 22).frame(height: 68)
     }
@@ -87,16 +91,6 @@ struct ContentView: View {
     private func shortcut(_ text: String, _ key: String) -> some View {
         HStack { Text(text); Spacer(); Text(key).font(.system(size: 10, design: .monospaced)).padding(3).background(Color.black.opacity(0.04), in: RoundedRectangle(cornerRadius: 4)) }.font(.system(size: 11)).foregroundStyle(.secondary)
     }
-    private var canvasControls: some View {
-        HStack(spacing: 0) {
-            iconButton("minus", "Zoom out") { store.canvas?.setZoom(store.zoom / 1.15) }
-            Button { store.canvas?.setZoom(1) } label: { Text("\(Int(store.zoom * 100))%").font(.system(size: 11, weight: .medium, design: .monospaced)).frame(width: 49, height: 30) }.buttonStyle(.plain).help("Reset zoom to 100%")
-            iconButton("plus", "Zoom in") { store.canvas?.setZoom(store.zoom * 1.15) }
-            Divider().frame(height: 18).padding(.horizontal, 8)
-            iconButton("arrow.up.left.and.arrow.down.right", "Fit to window") { store.canvas?.fit() }
-            iconButton("scope", "Center on root") { store.canvas?.center(on: store.map.root.id) }
-        }.padding(6).background(.white, in: Capsule()).overlay(Capsule().stroke(Color.black.opacity(0.07))).shadow(color: .black.opacity(0.06), radius: 12, y: 4)
-    }
     private var footer: some View {
         HStack(spacing: 12) {
             Text("Local file").font(.system(size: 10)).foregroundStyle(.secondary)
@@ -114,5 +108,24 @@ struct ContentView: View {
     }
     private func modeButton(_ mode: EditorMode, title: String, image: String) -> some View {
         Button { store.setMode(mode) } label: { Label(title, systemImage: image).font(.system(size: 10, weight: .medium)).padding(.horizontal, 10).padding(.vertical, 5).background(store.mode == mode ? Color.white : .clear, in: RoundedRectangle(cornerRadius: 5)) }.buttonStyle(.plain).foregroundStyle(store.mode == mode ? accent : .secondary).accessibilityLabel("Show \(title)")
+    }
+}
+
+/// Zoom ticks update this small view instead of rebuilding the topic list and inspector.
+private struct CanvasZoomControls: View {
+    let store: MapStore
+    @ObservedObject var viewport: CanvasViewport
+    var body: some View {
+        HStack(spacing: 0) {
+            button("minus", "Zoom out") { store.canvas?.setZoom(viewport.zoom / 1.15) }
+            Button { store.canvas?.setZoom(1) } label: { Text("\(Int(viewport.zoom * 100))%").font(.system(size: 11, weight: .medium, design: .monospaced)).frame(width: 49, height: 30) }.buttonStyle(.plain).help("Reset zoom to 100%")
+            button("plus", "Zoom in") { store.canvas?.setZoom(viewport.zoom * 1.15) }
+            Divider().frame(height: 18).padding(.horizontal, 8)
+            button("arrow.up.left.and.arrow.down.right", "Fit to window") { store.canvas?.fit() }
+            button("scope", "Center on root") { store.canvas?.center(on: store.map.root.id) }
+        }.padding(6).background(.white, in: Capsule()).overlay(Capsule().stroke(Color.black.opacity(0.07))).shadow(color: .black.opacity(0.06), radius: 12, y: 4)
+    }
+    private func button(_ image: String, _ label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Image(systemName: image).font(.system(size: 14)).frame(width: 30, height: 30).contentShape(Rectangle()) }.buttonStyle(.plain).help(label).accessibilityLabel(label)
     }
 }

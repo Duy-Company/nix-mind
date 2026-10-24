@@ -4,11 +4,22 @@ import Combine
 enum EditorMode: String { case mindMap, outliner }
 struct OutlineItem: Identifiable { let node: Topic; let depth: Int; var id: String { node.id } }
 
+@MainActor final class CanvasViewport: ObservableObject {
+    @Published var zoom = 1.0
+}
+
 @MainActor final class MapStore: ObservableObject {
-    @Published var workbook: MindBook
+    @Published var workbook: MindBook {
+        didSet { mapRevision &+= 1; cachedOutline = nil; cachedTopicIndices = nil }
+    }
+    private(set) var mapRevision: UInt64 = 0
+    private var cachedOutline: [OutlineItem]?
+    private var cachedTopicIndices: [String: Int]?
+    let viewport = CanvasViewport()
     @Published var selectedID: String
     @Published var mcpSettingsVisible = false
-    @Published var zoom = 1.0
+    var zoom: Double { get { viewport.zoom } set { viewport.zoom = newValue } }
+    @Published var sidebarVisible = true
     @Published var inspectorVisible = true
     @Published var mode = EditorMode.mindMap
     @Published var toast: String?
@@ -19,15 +30,21 @@ struct OutlineItem: Identifiable { let node: Topic; let depth: Int; var id: Stri
     init(map: MindMap = .blank()) { workbook = MindBook(map: map); selectedID = map.root.id }
     var map: MindMap { get { workbook.activeMap } set { workbook.activeMap = newValue } }
     var activeSheet: MapSheet { workbook.sheets[workbook.activeIndex] }
-    var selected: Topic { map.topic(selectedID) ?? map.root }
+    private var topicIndices: [String: Int] {
+        if let cachedTopicIndices { return cachedTopicIndices }
+        let value = Dictionary(uniqueKeysWithValues: map.topics.indices.map { (map.topics[$0].id, $0) })
+        cachedTopicIndices = value; return value
+    }
+    var selected: Topic { topicIndices[selectedID].map { map.topics[$0] } ?? map.root }
     var outline: [OutlineItem] {
+        if let cachedOutline { return cachedOutline }
         let children = map.adjacency
         var rows: [OutlineItem] = []
         func visit(_ node: Topic, _ depth: Int) {
             rows.append(OutlineItem(node: node, depth: depth))
             for child in children[node.id] ?? [] { visit(child, depth + 1) }
         }
-        visit(map.root, 0); return rows
+        visit(map.root, 0); cachedOutline = rows; return rows
     }
     func load(_ book: MindBook) {
         workbook = book; selectedID = book.activeMap.root.id; viewports = [:]
@@ -84,6 +101,7 @@ struct OutlineItem: Identifiable { let node: Topic; let depth: Int; var id: Stri
         applyBook(book, action: "Delete sheet"); selectedID = map.root.id; editingOutlineID = nil
     }
     func select(_ id: String, center: Bool = false) {
+        guard topicIndices[id] != nil else { return }
         canvas?.finishEditing(); selectedID = id
         if mode == .mindMap { if center { canvas?.center(on: id) }; canvas?.window?.makeFirstResponder(canvas) }
     }
