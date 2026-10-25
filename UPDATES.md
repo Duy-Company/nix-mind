@@ -56,4 +56,4 @@ The test uses temporary app copies and throwaway signing keys. It never replaces
 
 ## Signing distinction
 
-Sparkle update signatures authenticate downloads and feed metadata. They are separate from Apple's Developer ID signing and notarization. Releases remain ad-hoc signed until that distribution setup is configured. The first updater-enabled app must be installed manually because 1.0.3 and earlier have no updater.
+Sparkle update signatures authenticate downloads and feed metadata. They are separate from Apple's Developer ID signing and notarization. Releases remain ad-hoc signed until that distribution setup is configured. The first updater-enabled app must be installed manually. Versions through 1.0.3 have no updater, and 1.0.4 includes the framework with update checks disabled.

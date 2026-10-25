@@ -27,7 +27,7 @@ Once enabled, choose **Nix Mind → Check for Updates…** to download and insta
 
 Updates use [Sparkle](https://sparkle-project.org/) with signed release metadata and Ed25519-signed archives, verified before extraction. Downloads are still hosted by GitHub Releases; there is no new account or update server to configure. Install the app in Applications before updating, rather than running it from a mounted disk image.
 
-Version 1.0.3 and earlier do not contain the updater. Install the first updater-enabled release once using the download above; subsequent versions can be installed from the app. The signed update feed becomes available when that first release is published.
+Releases with the updater disabled, including 1.0.4, require one manual installation of the first updater-enabled release using the download above. Subsequent versions can then be installed from the app. The signed update feed becomes available when that first release is published.
 
 **These releases are ad-hoc signed, not Developer ID signed or notarized.** macOS may block the first launch. If you trust this release, follow Apple's [instructions for opening an app from an unidentified developer](https://support.apple.com/en-us/102445): after attempting to open it, go to **System Settings → Privacy & Security → Open Anyway**, if that option is offered. No system-wide security changes are needed.
 
