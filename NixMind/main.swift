@@ -1,6 +1,11 @@
 import AppKit
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
+    private lazy var appUpdater = AppUpdater {
+        for document in NSDocumentController.shared.documents {
+            (document as? MapDocument)?.store.canvas?.finishEditing()
+        }
+    }
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSApplication.shared.mainMenu = makeMenu()
         _ = NSDocumentController.shared
@@ -8,6 +13,7 @@ import AppKit
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApplication.shared.activate(ignoringOtherApps: true)
         MCPState.shared.start()
+        appUpdater.start()
     }
     func applicationWillTerminate(_ notification: Notification) { MCPState.shared.stop() }
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { true }
@@ -23,6 +29,7 @@ import AppKit
         }
         let app = section("Nix Mind")
         item(app, "About Nix Mind", #selector(NSApplication.orderFrontStandardAboutPanel(_:)))
+        appUpdater.addMenuItems(to: app)
         app.addItem(.separator()); item(app, "Hide Nix Mind", #selector(NSApplication.hide(_:)), "h")
         app.addItem(.separator()); item(app, "Quit Nix Mind", #selector(NSApplication.terminate(_:)), "q")
         let file = section("File")

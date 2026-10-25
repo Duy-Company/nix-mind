@@ -7,6 +7,11 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      package_release:
+        description: Build universal release packages (no publication without a tag)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -40,6 +45,28 @@ jobs:
           VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' NixMind/Info.plist)
           test "$RELEASE_TAG" = "v$VERSION"
           test -s "release-notes/$RELEASE_TAG.md"
+          BUILD_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' NixMind/Info.plist)
+          test "$BUILD_VERSION" = "$VERSION"
+
+      - name: Select build and update mode
+        id: mode
+        env:
+          PACKAGE_RELEASE: ${{ startsWith(github.ref, 'refs/tags/') || inputs.package_release == true }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          UPDATES=$(/usr/libexec/PlistBuddy -c 'Print :NixMindUpdatesEnabled' NixMind/Info.plist)
+          echo "updates=$UPDATES" >> "$GITHUB_OUTPUT"
+          if [ "$PACKAGE_RELEASE" = true ]; then
+            echo 'app=build/release/Build/Products/Release/Nix Mind.app' >> "$GITHUB_OUTPUT"
+            echo 'sparkle=build/release/SourcePackages/artifacts/sparkle/Sparkle' >> "$GITHUB_OUTPUT"
+          else
+            echo 'app=build/ci/Build/Products/Debug/Nix Mind.app' >> "$GITHUB_OUTPUT"
+            echo 'sparkle=build/ci/SourcePackages/artifacts/sparkle/Sparkle' >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$GITHUB_REF" == refs/tags/* && "$UPDATES" = true && -z "$SPARKLE_PRIVATE_KEY" ]]; then
+            echo 'Configure SPARKLE_PRIVATE_KEY before releasing an updater-enabled app.' >&2
+            exit 1
+          fi
 
       - name: Run core checks
         run: ./scripts/test.sh
@@ -50,7 +77,17 @@ jobs:
       - name: Run canvas and drag checks
         run: ./scripts/test-canvas.sh
 
+      - name: Build Debug for branch checks
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && inputs.package_release != true }}
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild -project NixMind.xcodeproj -scheme NixMind -configuration Debug \
+            -destination 'platform=macOS' -derivedDataPath build/ci \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build/debug-build.log
+
       - name: Build, sign, and package
+        if: ${{ startsWith(github.ref, 'refs/tags/') || inputs.package_release == true }}
         env:
           RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
         run: |
@@ -59,9 +96,25 @@ jobs:
           ./scripts/build-release.sh 2>&1 | tee build/release-build.log
 
       - name: Run live MCP checks against the release app
-        run: ./scripts/test-mcp-isolated.sh
+        env:
+          APP_PATH: ${{ steps.mode.outputs.app }}
+        run: ./scripts/test-mcp-isolated.sh "$APP_PATH"
+
+      - name: Run updater and signing checks
+        env:
+          APP_PATH: ${{ steps.mode.outputs.app }}
+          SPARKLE_PATH: ${{ steps.mode.outputs.sparkle }}
+        run: ./scripts/test-updater.sh "$APP_PATH" "$SPARKLE_PATH"
+
+      - name: Sign and verify in-app update feed
+        if: ${{ startsWith(github.ref, 'refs/tags/') && steps.mode.outputs.updates == 'true' }}
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: python3 scripts/create-appcast.py
 
       - name: Upload macOS downloads
+        if: ${{ startsWith(github.ref, 'refs/tags/') || inputs.package_release == true }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: macos-universal
@@ -118,7 +171,9 @@ jobs:
           # Keep incomplete releases as drafts until every asset is present.
           DRAFT=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)
           if [ "$DRAFT" = true ]; then
-            gh release upload "$RELEASE_TAG" dist/*.zip dist/*.dmg dist/SHA256SUMS.txt --clobber
+            ASSETS=(dist/*.zip dist/*.dmg dist/SHA256SUMS.txt)
+            if [ -f dist/appcast.xml ]; then ASSETS+=(dist/appcast.xml); fi
+            gh release upload "$RELEASE_TAG" "${ASSETS[@]}" --clobber
             gh release edit "$RELEASE_TAG" --draft=false --latest
           else
             echo "Release is already published; existing assets are unchanged."

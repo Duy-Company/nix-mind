@@ -7,6 +7,8 @@ An independent native macOS mind-mapping app for turning ideas into clear, conne
 
 Nix Mind is built with **Swift, SwiftUI, and AppKit**. Your maps are local files. There is no account, hosted backend, or built-in AI subscription, and the interface is in English.
 
+In-app updates use Sparkle; its [license and third-party notices](NixMind/Sparkle-LICENSE.txt) are included in the app bundle.
+
 ## Download and run
 
 **Requires macOS 14 Sonoma or later.** The universal app supports Apple Silicon and Intel Macs.
@@ -16,6 +18,16 @@ Nix Mind is built with **Swift, SwiftUI, and AppKit**. Your maps are local files
 3. Launch Nix Mind from Applications and create a map, or choose **File → Open…** to open an existing file.
 
 A `.zip` is also available: extract it, then move **Nix Mind.app** into Applications. Each release includes `SHA256SUMS.txt` for checking the downloads.
+
+### Update from inside the app
+
+**Currently paused:** update signing has not been configured, so updater menu items and network checks are disabled. Releases can still be downloaded and installed manually. Maintainers can enable `NixMindUpdatesEnabled` after completing [UPDATES.md](UPDATES.md).
+
+Once enabled, choose **Nix Mind → Check for Updates…** to download and install a new version without visiting GitHub. The app also checks once a day; turn this off or on with **Nix Mind → Automatically Check for Updates**. You choose when to install and relaunch. Pending inline topic edits are committed before installation, and the normal document save/quit flow remains in effect.
+
+Updates use [Sparkle](https://sparkle-project.org/) with signed release metadata and Ed25519-signed archives, verified before extraction. Downloads are still hosted by GitHub Releases; there is no new account or update server to configure. Install the app in Applications before updating, rather than running it from a mounted disk image.
+
+Version 1.0.3 and earlier do not contain the updater. Install the first updater-enabled release once using the download above; subsequent versions can be installed from the app. The signed update feed becomes available when that first release is published.
 
 **These releases are ad-hoc signed, not Developer ID signed or notarized.** macOS may block the first launch. If you trust this release, follow Apple's [instructions for opening an app from an unidentified developer](https://support.apple.com/en-us/102445): after attempting to open it, go to **System Settings → Privacy & Security → Open Anyway**, if that option is offered. No system-wide security changes are needed.
 
@@ -30,6 +42,7 @@ A `.zip` is also available: extract it, then move **Nix Mind.app** into Applicat
 - **Multiple sheets in one file.** Create, switch, rename, and remove sheets using tabs at the top of the window.
 - **Mind map and Outliner views.** Switch at the bottom right. Both views edit the same topics; Outliner supports collapsing branches and indenting or outdenting topics.
 - **Local document workflow.** New, Open, Save, Save As, autosave, multiple document windows, and native Undo/Redo.
+- **In-app updates (prepared, currently disabled).** Check for new versions, download, install, and relaunch using the app menu, with optional daily checks.
 - **File exchange.** Import and export compatible mind map archives and FreeMind files.
 - **Local MCP for AI clients.** Let an MCP client read and edit topics, formatting, structure, and sheets through 14 local tools, with atomic patches and stale-data checks.
 
@@ -86,7 +99,7 @@ See [MCP.md](MCP.md) for tools and the editing contract, or start with the [VS C
 
 ## Build from source
 
-Install **Xcode 16.4 or later**, select it as your active developer directory, and complete Xcode's first-launch setup. There are no third-party app dependencies to install.
+Install **Xcode 16.4 or later**, select it as your active developer directory, and complete Xcode's first-launch setup. Xcode resolves the pinned **Sparkle 2.10.0** Swift package automatically; the first build requires internet access. Commit `Package.resolved` when changing the dependency.
 
 ```sh
 git clone git@github.com:Duy-Company/nix-mind.git
@@ -119,6 +132,7 @@ The packaged downloads appear in `dist/`.
 ./scripts/test.sh          # Model, layout, file formats, and MCP patches
 ./scripts/test-editor.sh   # Native editor state, styles, sheet operations, and Undo/Redo
 ./scripts/test-canvas.sh   # Indexed culling, render caches, drag preview, and Undo
+./scripts/test-updater.sh  # After a release build: native updater, signed feed, and tampering checks
 # Optional: run canvas checks and a local benchmark on your own map
 ./scripts/test-canvas.sh /path/to/map.nixmap
 ./scripts/benchmark-canvas.sh /path/to/map.nixmap
@@ -128,6 +142,8 @@ python3 scripts/test-mcp.py
 
 The suites cover the model and file formats, native editing, canvas indexing and caching, branch drags and Undo, and live MCP integration. MCP tests create their own files under `build/`; they do not edit existing documents. Automated checks do not replace visual and gesture testing on every supported macOS version.
 
-[GitHub Actions](https://github.com/Duy-Company/nix-mind/actions) runs tests, builds a universal app, verifies its ad-hoc signature and architectures, exercises MCP against the built app, and packages downloads on pushes and pull requests to `main`. Pushing a version tag such as `v1.0` publishes a GitHub Release only after these checks pass. The tag must match the app version and have a corresponding file in `release-notes/`.
+[GitHub Actions](https://github.com/Duy-Company/nix-mind/actions) runs tests and builds Debug on pushes and pull requests to `main`. Universal Release packages are built only for an explicitly pushed version tag or a manual workflow run with `package_release` enabled. Pushing a version tag such as `v1.0` publishes a GitHub Release only after these checks pass. The tag must match the app version and have a corresponding file in `release-notes/`.
+
+When `NixMindUpdatesEnabled` is true, releases also publish a signed `appcast.xml` for in-app updates. Maintainers must configure the update-signing secret once before tagging an updater-enabled release; see [UPDATES.md](UPDATES.md). Normal branch and pull-request checks use temporary test keys and do not need that secret.
 
 Source code, the Xcode project, tests, scripts, and the sample workbook are tracked. Build outputs, local MCP configurations, and personal Xcode settings are excluded. Run `python3 scripts/create-project.py` if you add Swift source files and need to regenerate the project.

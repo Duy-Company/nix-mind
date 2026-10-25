@@ -23,11 +23,20 @@ APP='build/release/Build/Products/Release/Nix Mind.app'
 BINARY="$APP/Contents/MacOS/Nix Mind"
 BUNDLE_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")
 [[ "$BUNDLE_VERSION" == "$VERSION" ]]
+BUILD_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")
+[[ "$BUILD_VERSION" == "$VERSION" ]]
 lipo "$BINARY" -verify_arch arm64 x86_64
+test -f "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle"
+# Xcode removes framework headers when embedding; refresh that resource seal.
+# Keep Sparkle's nested helper signatures and entitlements intact.
+codesign --force --sign - --timestamp=none "$APP/Contents/Frameworks/Sparkle.framework"
+codesign --verify --deep --strict "$APP/Contents/Frameworks/Sparkle.framework"
 codesign --force --sign - --timestamp=none "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
 
 mkdir -p dist
+# A locally generated feed from an older build must not accompany a new archive.
+rm -f dist/appcast.xml
 ZIP="Nix-Mind-$VERSION-macos-universal.zip"
 DMG="Nix-Mind-$VERSION-macos-universal.dmg"
 # Delete only the generated ZIP before reusing its exact output path.
