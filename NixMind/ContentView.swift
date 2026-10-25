@@ -6,6 +6,12 @@ struct ContentView: View {
     @ObservedObject private var mcp = MCPState.shared
     private let accent = Color(nsColor: Palette.purple)
     var body: some View {
+        ZStack {
+            editor.disabled(store.searchVisible).accessibilityHidden(store.searchVisible)
+            if store.searchVisible { TopicSearchPopup(store: store).transition(.opacity).zIndex(1) }
+        }.animation(.easeOut(duration: 0.16), value: store.searchVisible)
+    }
+    private var editor: some View {
         VStack(spacing: 0) {
             header
             Divider()
@@ -46,6 +52,7 @@ struct ContentView: View {
             }
             iconButton("sidebar.left", store.sidebarVisible ? "Hide topics sidebar" : "Show topics sidebar") { store.canvas?.finishEditing(); store.sidebarVisible.toggle() }
             Spacer()
+            iconButton("magnifyingglass", "Search topics ⌘F") { store.showSearch() }
             iconButton("arrow.uturn.backward", "Undo ⌘Z") { store.document?.undoManager?.undo() }.disabled(!(store.document?.undoManager?.canUndo ?? false))
             iconButton("arrow.uturn.forward", "Redo ⇧⌘Z") { store.document?.undoManager?.redo() }.disabled(!(store.document?.undoManager?.canRedo ?? false))
             Divider().frame(height: 22).padding(.horizontal, 6)

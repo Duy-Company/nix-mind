@@ -39,6 +39,7 @@ Version 1.0.3 and earlier do not contain the updater. Install the first updater-
 - **Node appearance.** Use a rounded rectangle, rectangle, capsule, ellipse, or diamond. Customize fill, border color, and border width, plus branch colors and notes.
 - **Branch direction.** Choose Automatic, Left to right, or Right to left. The layout and topic **+** controls follow the direction.
 - **Resizable side panels.** Drag either divider to make the topic list or inspector wider. Use the left and right sidebar buttons in the header to hide or show each panel.
+- **Find ideas quickly.** Open the translucent Search popup with `⌘F` or the magnifying-glass button. Search topic titles and notes in this sheet or all sheets, with bold match highlighting, accent-insensitive matching, any word order, acronyms, and small title typos. Arrow keys select a result; Return centers it on the canvas or reveals it in Outliner, expanding its ancestors.
 - **Multiple sheets in one file.** Create, switch, rename, and remove sheets using tabs at the top of the window.
 - **Mind map and Outliner views.** Switch at the bottom right. Both views edit the same topics; Outliner supports collapsing branches and indenting or outdenting topics.
 - **Local document workflow.** New, Open, Save, Save As, autosave, multiple document windows, and native Undo/Redo.
@@ -65,6 +66,8 @@ Select a topic to reveal its **+** controls. The upper control adds a child; the
 | Pan | Drag the background, or hold `Space` and drag |
 | Zoom | Trackpad pinch, or `⌘` + scroll |
 | Fit / center on root | `⌘0` / `⌘1` |
+| Search topics and notes | `⌘F` or the magnifying-glass button |
+| Search navigation / open / close | `↑` and `↓` / `Return` / `Escape` |
 | Arrange the current sheet | `⇧⌘L` |
 | Undo / Redo | `⌘Z` / `⇧⌘Z` |
 | Add sibling while editing in Outliner | `Return` |
@@ -132,6 +135,7 @@ The packaged downloads appear in `dist/`.
 ./scripts/test.sh          # Model, layout, file formats, and MCP patches
 ./scripts/test-editor.sh   # Native editor state, styles, sheet operations, and Undo/Redo
 ./scripts/test-canvas.sh   # Indexed culling, render caches, drag preview, and Undo
+./scripts/test-search.sh   # Ranked/fuzzy search, Unicode highlights, notes, and result navigation
 ./scripts/test-updater.sh  # After a release build: native updater, signed feed, and tampering checks
 # Optional: run canvas checks and a local benchmark on your own map
 ./scripts/test-canvas.sh /path/to/map.nixmap

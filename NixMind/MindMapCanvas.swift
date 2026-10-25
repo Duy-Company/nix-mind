@@ -365,6 +365,9 @@ struct CanvasHost: NSViewRepresentable {
         return false
     }
     override func keyDown(with event: NSEvent) {
+        // SwiftUI can leave the hidden NSView as first responder briefly while
+        // switching modes or presenting Search. Never edit through that stale focus.
+        guard store.mode == .mindMap, !store.searchVisible else { super.keyDown(with: event); return }
         switch event.keyCode {
         case 48: store.addChild()
         case 36, 76: store.addSibling()

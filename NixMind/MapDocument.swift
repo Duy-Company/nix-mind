@@ -53,6 +53,7 @@ import SwiftUI
         super.canClose(withDelegate: delegate, shouldClose: shouldCloseSelector, contextInfo: contextInfo)
     }
     @objc func showMCPSettings(_ sender: Any?) { store.canvas?.finishEditing(); store.mcpSettingsVisible = true }
+    @objc func showSearch(_ sender: Any?) { store.showSearch() }
     @objc func addChild(_ sender: Any?) { store.addChild() }
     @objc func addSibling(_ sender: Any?) { store.addSibling() }
     @objc func renameTopic(_ sender: Any?) { store.editSelected() }

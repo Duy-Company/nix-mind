@@ -27,6 +27,11 @@ struct OutlinerView: View {
                         }
                     }.padding(22)
                 }.onChange(of: store.editingOutlineID) { _, id in if let id { collapsed.removeAll(); proxy.scrollTo(id, anchor: .center) } }
+                .onChange(of: store.outlineRevealRequest) { _, request in
+                    guard let request else { return }
+                    collapsed.subtract(store.ancestorIDs(of: request.id))
+                    DispatchQueue.main.async { proxy.scrollTo(request.id, anchor: .center) }
+                }
             }
         }.background(Color(nsColor: Palette.background)).onChange(of: store.activeSheet.id) { _, _ in collapsed.removeAll() }
     }

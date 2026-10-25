@@ -46,6 +46,7 @@ import AppKit
         item(edit, "Undo", Selector(("undo:")), "z")
         item(edit, "Redo", Selector(("redo:")), "z", [.command, .shift])
         edit.addItem(.separator()); item(edit, "Cut", #selector(NSText.cut(_:)), "x"); item(edit, "Copy", #selector(NSText.copy(_:)), "c"); item(edit, "Paste", #selector(NSText.paste(_:)), "v"); item(edit, "Select All", #selector(NSText.selectAll(_:)), "a")
+        edit.addItem(.separator()); item(edit, "Find Topics…", #selector(MapDocument.showSearch(_:)), "f")
         let node = section("Topic")
         item(node, "Add child topic", #selector(MapDocument.addChild(_:)))
         item(node, "Add sibling topic", #selector(MapDocument.addSibling(_:)))

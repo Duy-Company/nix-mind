@@ -3,6 +3,7 @@ import Combine
 
 enum EditorMode: String { case mindMap, outliner }
 struct OutlineItem: Identifiable { let node: Topic; let depth: Int; var id: String { node.id } }
+struct OutlineRevealRequest: Equatable { let id: String; let token = UUID() }
 
 @MainActor final class CanvasViewport: ObservableObject {
     @Published var zoom = 1.0
@@ -18,6 +19,9 @@ struct OutlineItem: Identifiable { let node: Topic; let depth: Int; var id: Stri
     let viewport = CanvasViewport()
     @Published var selectedID: String
     @Published var mcpSettingsVisible = false
+    @Published var searchVisible = false
+    @Published var searchFocusRequest = UUID()
+    @Published var outlineRevealRequest: OutlineRevealRequest?
     var zoom: Double { get { viewport.zoom } set { viewport.zoom = newValue } }
     @Published var sidebarVisible = true
     @Published var inspectorVisible = true
@@ -104,6 +108,35 @@ struct OutlineItem: Identifiable { let node: Topic; let depth: Int; var id: Stri
         guard topicIndices[id] != nil else { return }
         canvas?.finishEditing(); selectedID = id
         if mode == .mindMap { if center { canvas?.center(on: id) }; canvas?.window?.makeFirstResponder(canvas) }
+    }
+    func showSearch() {
+        canvas?.finishEditing(); editingOutlineID = nil
+        canvas?.window?.makeFirstResponder(nil)
+        searchVisible = true; searchFocusRequest = UUID()
+    }
+    func dismissSearch() {
+        searchVisible = false
+        if mode == .mindMap { canvas?.window?.makeFirstResponder(canvas) }
+    }
+    func ancestorIDs(of id: String) -> Set<String> {
+        var result: Set<String> = [], parent = topicIndices[id].flatMap { map.topics[$0].parentID }
+        while let id = parent, result.insert(id).inserted {
+            parent = topicIndices[id].flatMap { map.topics[$0].parentID }
+        }
+        return result
+    }
+    @discardableResult func revealSearchResult(_ result: TopicSearchResult) -> Bool {
+        guard let sheet = workbook.sheets.first(where: { $0.id == result.sheetID }), sheet.map.topic(result.topicID) != nil else {
+            showToast("That topic changed. Search again for the latest results."); return false
+        }
+        canvas?.finishEditing(); switchSheet(result.sheetID)
+        selectedID = result.topicID; editingOutlineID = nil
+        dismissSearch()
+        if mode == .outliner { outlineRevealRequest = OutlineRevealRequest(id: result.topicID) }
+        else if let canvas {
+            canvas.setZoom(max(0.75, canvas.scale)); canvas.center(on: result.topicID)
+        }
+        return true
     }
     func editSelected() {
         if mode == .outliner { editingOutlineID = selectedID }
