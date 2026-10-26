@@ -121,7 +121,7 @@ enum MapFormats {
                 }
                 return ["id": sheet.id, "class": "sheet", "title": sheet.title, "rootTopic": try object(sheet.map.root), "topicPositioning": "fixed", "nixmind": ["active": sheet.id == book.activeSheetID]]
             }
-            let files: [String: Any] = ["content.json": sheets, "metadata.json": ["creator": ["name": "Nix Mind", "version": "1.0.4"]], "manifest.json": ["file-entries": ["content.json": [:], "metadata.json": [:]]]]
+            let files: [String: Any] = ["content.json": sheets, "metadata.json": ["creator": ["name": "Nix Mind", "version": "1.0.5"]], "manifest.json": ["file-entries": ["content.json": [:], "metadata.json": [:]]]]
             for (name, object) in files { try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]).write(to: directory.appendingPathComponent(name)) }
             let archive = directory.appendingPathComponent("map.xmind")
             try run("/usr/bin/zip", ["-q", archive.path, "content.json", "metadata.json", "manifest.json"], directory: directory)

@@ -1,6 +1,6 @@
 # Maintaining in-app updates
 
-**Status:** enabled via `NixMindUpdatesEnabled = true`; the production signing key is configured as the encrypted `SPARKLE_PRIVATE_KEY` repository secret. The signed public feed will be published with the first updater-enabled release. Existing 1.0.4 downloads remain unchanged and need a one-time manual upgrade to that release. Branch pushes continue to run Debug CI only.
+**Status:** enabled via `NixMindUpdatesEnabled = true`; the production signing key is configured as the encrypted `SPARKLE_PRIVATE_KEY` repository secret. Version 1.0.5 is the first updater-enabled release and publishes the signed public feed. Existing 1.0.4 downloads remain unchanged and need a one-time manual upgrade to 1.0.5. Branch pushes continue to run Debug CI only.
 
 Nix Mind uses Sparkle 2.10.0. The app's **Check for Updates…** menu checks a signed feed at:
 

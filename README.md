@@ -21,13 +21,13 @@ A `.zip` is also available: extract it, then move **Nix Mind.app** into Applicat
 
 ### Update from inside the app
 
-**Enabled for upcoming builds.** The signing key is configured in GitHub Actions. The public feed will become available with the first updater-enabled release; historical 1.0.4 downloads remain unchanged.
+**Available starting with version 1.0.5.** This is the first release with in-app update checks enabled and a signed public update feed.
 
 Choose **Nix Mind → Check for Updates…** to download and install a new version without visiting GitHub. The app also checks once a day; turn this off or on with **Nix Mind → Automatically Check for Updates**. You choose when to install and relaunch. Pending inline topic edits are committed before installation, and the normal document save/quit flow remains in effect.
 
 Updates use [Sparkle](https://sparkle-project.org/) with signed release metadata and Ed25519-signed archives, verified before extraction. Downloads are still hosted by GitHub Releases; there is no new account or update server to configure. Install the app in Applications before updating, rather than running it from a mounted disk image.
 
-Releases with the updater disabled, including 1.0.4, require one manual installation of the first updater-enabled release using the download above. Subsequent versions can then be installed from the app. The signed update feed becomes available when that first release is published.
+If you use 1.0.4 or earlier, install 1.0.5 manually once using the download above. From 1.0.5 onward, use the app to check for and install future releases.
 
 **These releases are ad-hoc signed, not Developer ID signed or notarized.** macOS may block the first launch. If you trust this release, follow Apple's [instructions for opening an app from an unidentified developer](https://support.apple.com/en-us/102445): after attempting to open it, go to **System Settings → Privacy & Security → Open Anyway**, if that option is offered. No system-wide security changes are needed.
 

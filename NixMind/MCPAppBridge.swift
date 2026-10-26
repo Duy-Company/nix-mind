@@ -57,7 +57,7 @@ import Combine
     static func handle(_ request: [String: Any]) async throws -> [String: Any] {
         guard MCPState.shared.enabled else { throw AIError("Local MCP is disabled in Nix Mind.") }
         let action = request["action"] as? String ?? ""
-        if action == "ping" { return ["app": "Nix Mind", "version": "1.0.4", "executable": Bundle.main.executableURL?.path ?? ""] }
+        if action == "ping" { return ["app": "Nix Mind", "version": "1.0.5", "executable": Bundle.main.executableURL?.path ?? ""] }
         if action == "list_documents" {
             MCPState.shared.activity("Client read open documents")
             return ["documents": NSDocumentController.shared.documents.compactMap { ($0 as? MapDocument).map(summary) }]
