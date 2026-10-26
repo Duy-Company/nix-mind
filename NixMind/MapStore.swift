@@ -150,10 +150,7 @@ struct OutlineRevealRequest: Equatable { let id: String; let token = UUID() }
         guard let id = next.addChild(to: parent) else { showToast("This sheet has reached its document capacity."); return }
         apply(next, action: "Add topic"); selectedID = id
         if mode == .outliner { editingOutlineID = id }
-        else {
-            canvas?.fit(onlyShrink: true)
-            canvas?.editSelected()
-        }
+        else { canvas?.editSelected() }
     }
     func rename(_ id: String, title: String) {
         var next = map

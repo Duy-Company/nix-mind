@@ -33,7 +33,7 @@ Releases with the updater disabled, including 1.0.4, require one manual installa
 
 ## Features
 
-- **A canvas that grows with your ideas.** Add more than six branches to the central topic. New topics automatically arrange themselves, and the view zooms out to make room.
+- **A canvas that grows with your ideas.** Add more than six branches to the central topic. New topics automatically arrange themselves while your current zoom and pan stay in place. Use Fit to window (`⌘0`) when you want to see the whole map.
 - **Direct editing.** Double-click a topic to rename it on its own background. Drag a topic to move its entire branch; pan and zoom around the canvas.
 - **Topic formatting.** Choose an installed font, font size, bold, italic, underline, strikethrough, text alignment, and text color.
 - **Node appearance.** Use a rounded rectangle, rectangle, capsule, ellipse, or diamond. Customize fill, border color, and border width, plus branch colors and notes.

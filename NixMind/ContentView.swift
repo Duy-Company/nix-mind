@@ -84,7 +84,7 @@ struct ContentView: View {
             Spacer(minLength: 15)
             VStack(alignment: .leading, spacing: 11) {
                 Label("Room to grow", systemImage: "sparkle").font(.system(size: 12, weight: .semibold)).foregroundStyle(accent)
-                Text("Add as many branches as you need. Your map arranges itself and zooms out to make room.").font(.system(size: 11)).foregroundStyle(.secondary).lineSpacing(3)
+                Text("Add as many branches as you need. Your map arranges itself while your view stays in place.").font(.system(size: 11)).foregroundStyle(.secondary).lineSpacing(3)
                 Divider()
                 shortcut("Add child", "Tab"); shortcut("Add sibling", "↵"); shortcut("Rename", "E")
             }.padding(14).background(.white, in: RoundedRectangle(cornerRadius: 12)).padding(13)

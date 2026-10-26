@@ -77,11 +77,14 @@ import AppKit
         document.undoManager?.redo()
         check(store.workbook.sheets.count == 3, "Adding a sheet is redoable")
         store.switchSheet(firstID)
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.03))
+        canvas.restoreViewport(pan: CGPoint(x: 410, y: 280), scale: 0.85)
+        let previousZoom = canvas.scale, previousPan = canvas.pan
         store.selectedID = firstRoot
         for _ in 0..<80 { store.addChild(firstRoot); canvas.finishEditing() }
         check(store.map.children(of: firstRoot).count > 80, "Canvas supports more than six direct root branches")
-        check(canvas.scale < 1, "Canvas automatically zooms out as root branches grow")
-        check(store.map.topic(child)?.appearance.fontSize == 27, "Zooming out does not modify saved typography")
+        check(canvas.scale == previousZoom && store.zoom == previousZoom && canvas.pan == previousPan, "Adding many root branches preserves the current viewport")
+        check(store.map.topic(child)?.appearance.fontSize == 27, "Adding branches does not modify existing typography")
         store.load(original)
         let disposable = store.addSheet(title: "Delete check")
         store.deleteSheet(disposable)

@@ -58,6 +58,37 @@ import Combine
         func event(_ kind: NSEvent.EventType, at point: CGPoint) -> NSEvent {
             NSEvent.mouseEvent(with: kind, location: canvas.convert(point, to: nil), modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 0)!
         }
+        func checkAddingKeepsViewport(_ source: MindMap, label: String) {
+            let doc = MapDocument(), target = doc.store
+            target.load(MindBook(map: source))
+            let view = MindMapCanvas(store: target)
+            view.frame = CGRect(x: 0, y: 0, width: 1100, height: 740)
+            let host = NSWindow(contentRect: view.frame, styleMask: [.titled], backing: .buffered, defer: false)
+            host.contentView = view; view.layout()
+            let branch = source.topics.first { $0.parentID == source.root.id }!
+            let scenarios: [(String, Bool)] = [(branch.id, false), (branch.id, true), (source.root.id, false)]
+            for (selected, sibling) in scenarios {
+                target.load(MindBook(map: source)); target.selectedID = selected
+                view.setZoom(1.25); view.center(on: selected)
+                // Test an intentional pan as well as zoom, rather than a fitted viewport.
+                view.restoreViewport(pan: CGPoint(x: view.pan.x + 37, y: view.pan.y - 29), scale: view.scale)
+                let pan = view.pan, zoom = view.scale, anchor = view.world(CGPoint(x: view.bounds.midX, y: view.bounds.midY))
+                let parent = sibling ? source.topic(selected)!.parentID! : selected
+                let handle = view.handles(target.selected).first { $0.sibling == sibling }!
+                let point = CGPoint(x: handle.rect.midX, y: handle.rect.midY)
+                let click = NSEvent.mouseEvent(with: .leftMouseDown, location: view.convert(point, to: nil), modifierFlags: [], timestamp: 0, windowNumber: host.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 0)!
+                view.mouseDown(with: click)
+                RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.03))
+                let added = target.selected
+                check(target.map.topics.count == source.topics.count + 1 && added.parentID == parent, "\(label): plus adds the correct \(sibling ? "sibling" : "child") branch")
+                check(view.scale == zoom && target.zoom == zoom && view.pan == pan && view.world(CGPoint(x: view.bounds.midX, y: view.bounds.midY)) == anchor,
+                      "\(label): \(sibling ? "sibling" : "child") plus preserves zoom, pan, and the viewed world point")
+                check(view.editingID == added.id && view.editor?.font?.pointSize == added.font(scale: zoom).pointSize,
+                      "\(label): new branch still opens inline editing at the current zoom")
+                view.finishEditing(cancel: true)
+            }
+        }
+        checkAddingKeepsViewport(map, label: "Synthetic map")
         let startRect = canvas.rect(store.map.topic(child)!)
         let start = CGPoint(x: startRect.midX, y: startRect.midY)
         let end = CGPoint(x: start.x + 75, y: start.y + 45)
@@ -107,6 +138,7 @@ import Combine
             check(true, "User fixture node/link culling agrees with brute force across 40 viewports")
             let reuse = CanvasScene(map: fixture.activeMap, previous: realScene)
             check(reuse.measuredTextCount == 0, "Unchanged real-world fixture reuses every measured title")
+            checkAddingKeepsViewport(fixture.activeMap, label: "User fixture")
         }
         print("PASS: \(checks) canvas checks")
     }
