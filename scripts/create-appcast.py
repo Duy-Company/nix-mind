@@ -25,6 +25,8 @@ def main():
     # The source plist is an Xcode template; archives contain its resolved value.
     if info.get('CFBundleIdentifier') == '$(PRODUCT_BUNDLE_IDENTIFIER)':
         info['CFBundleIdentifier'] = 'com.nixmind.mac'
+    if info.get('NixMindUpdatesEnabled') is not True:
+        raise ValueError('The app must have in-app updates enabled before publishing its update feed.')
     version = info['CFBundleShortVersionString']
     if info['CFBundleVersion'] != version:
         raise ValueError('Use the release version for CFBundleVersion so Sparkle can order updates.')
@@ -37,7 +39,7 @@ def main():
     with zipfile.ZipFile(archive) as zipped:
         bundled = plistlib.loads(zipped.read('Nix Mind.app/Contents/Info.plist'))
     for key in ['CFBundleIdentifier', 'CFBundleVersion', 'CFBundleShortVersionString',
-                'SUPublicEDKey', 'SUFeedURL', 'SURequireSignedFeed', 'SUVerifyUpdateBeforeExtraction']:
+                'SUPublicEDKey', 'SUFeedURL', 'SURequireSignedFeed', 'SUVerifyUpdateBeforeExtraction', 'NixMindUpdatesEnabled']:
         if bundled.get(key) != info.get(key):
             raise ValueError(f'Packaged app does not match expected metadata: {key}')
     notes = args.notes or ROOT / 'release-notes' / f'v{version}.md'

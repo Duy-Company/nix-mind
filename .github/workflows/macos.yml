@@ -71,6 +71,9 @@ jobs:
       - name: Run core checks
         run: ./scripts/test.sh
 
+      - name: Run update configuration checks
+        run: python3 Tests/UpdateConfigurationTests.py
+
       - name: Run native editor checks
         run: ./scripts/test-editor.sh
 

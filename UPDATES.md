@@ -1,6 +1,6 @@
 # Maintaining in-app updates
 
-**Status:** prepared but disabled via `NixMindUpdatesEnabled = false`. Until signing setup is complete, the app performs no update checks and hides updater menu items. Version tags still produce manual-download releases without a signing secret. Branch pushes run Debug CI only.
+**Status:** enabled via `NixMindUpdatesEnabled = true`; the production signing key is configured as the encrypted `SPARKLE_PRIVATE_KEY` repository secret. The signed public feed will be published with the first updater-enabled release. Existing 1.0.4 downloads remain unchanged and need a one-time manual upgrade to that release. Branch pushes continue to run Debug CI only.
 
 Nix Mind uses Sparkle 2.10.0. The app's **Check for Updates…** menu checks a signed feed at:
 
@@ -27,7 +27,7 @@ For a Debug build with a different derived-data folder, pass the tools directory
 ./scripts/configure-updates.sh build/updater-debug/SourcePackages/artifacts/sparkle/Sparkle/bin
 ```
 
-After configuring the secret, set `NixMindUpdatesEnabled` to `true` before releasing the first updater-enabled build.
+The source configuration is now enabled. The setup command is only needed again when deliberately restoring the same identity on another machine or updating the repository secret; regular releases reuse it automatically.
 
 ## Publishing a version
 

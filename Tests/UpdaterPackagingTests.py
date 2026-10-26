@@ -75,6 +75,14 @@ def main():
         print('✓ Signed feed generation resolves the source plist bundle identifier')
         assert checksums.read_text().splitlines()[-1] == f'{hashlib.sha256(feed.read_bytes()).hexdigest()}  appcast.xml'
         print('✓ Published checksums include the signed appcast')
+        expected['NixMindUpdatesEnabled'] = False
+        expected_info.write_bytes(plistlib.dumps(expected))
+        disabled = subprocess.run([str(x) for x in command], env=env, capture_output=True, text=True)
+        assert disabled.returncode != 0, 'A disabled updater must not be published as an update target'
+        expected['NixMindUpdatesEnabled'] = True
+        expected_info.write_bytes(plistlib.dumps(expected))
+        checks += 1
+        print('✓ Publisher refuses an updater-disabled app configuration')
         # Exercise Sparkle's own feed validation, not only our independent verifier.
         # Only this temporary host permits localhost HTTP; production uses HTTPS.
         info.update(CFBundleIdentifier=test_identifier, CFBundleVersion='1.0.3', CFBundleShortVersionString='1.0.3',

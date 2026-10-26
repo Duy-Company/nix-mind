@@ -21,9 +21,9 @@ A `.zip` is also available: extract it, then move **Nix Mind.app** into Applicat
 
 ### Update from inside the app
 
-**Currently paused:** update signing has not been configured, so updater menu items and network checks are disabled. Releases can still be downloaded and installed manually. Maintainers can enable `NixMindUpdatesEnabled` after completing [UPDATES.md](UPDATES.md).
+**Enabled for upcoming builds.** The signing key is configured in GitHub Actions. The public feed will become available with the first updater-enabled release; historical 1.0.4 downloads remain unchanged.
 
-Once enabled, choose **Nix Mind → Check for Updates…** to download and install a new version without visiting GitHub. The app also checks once a day; turn this off or on with **Nix Mind → Automatically Check for Updates**. You choose when to install and relaunch. Pending inline topic edits are committed before installation, and the normal document save/quit flow remains in effect.
+Choose **Nix Mind → Check for Updates…** to download and install a new version without visiting GitHub. The app also checks once a day; turn this off or on with **Nix Mind → Automatically Check for Updates**. You choose when to install and relaunch. Pending inline topic edits are committed before installation, and the normal document save/quit flow remains in effect.
 
 Updates use [Sparkle](https://sparkle-project.org/) with signed release metadata and Ed25519-signed archives, verified before extraction. Downloads are still hosted by GitHub Releases; there is no new account or update server to configure. Install the app in Applications before updating, rather than running it from a mounted disk image.
 
@@ -43,7 +43,7 @@ Releases with the updater disabled, including 1.0.4, require one manual installa
 - **Multiple sheets in one file.** Create, switch, rename, and remove sheets using tabs at the top of the window.
 - **Mind map and Outliner views.** Switch at the bottom right. Both views edit the same topics; Outliner supports collapsing branches and indenting or outdenting topics.
 - **Local document workflow.** New, Open, Save, Save As, autosave, multiple document windows, and native Undo/Redo.
-- **In-app updates (prepared, currently disabled).** Check for new versions, download, install, and relaunch using the app menu, with optional daily checks.
+- **In-app updates.** Check for new versions, download, install, and relaunch using the app menu, with optional daily checks.
 - **File exchange.** Import and export compatible mind map archives and FreeMind files.
 - **Local MCP for AI clients.** Let an MCP client read and edit topics, formatting, structure, and sheets through 14 local tools, with atomic patches and stale-data checks.
 
@@ -148,6 +148,6 @@ The suites cover the model and file formats, native editing, canvas indexing and
 
 [GitHub Actions](https://github.com/Duy-Company/nix-mind/actions) runs tests and builds Debug on pushes and pull requests to `main`. Universal Release packages are built only for an explicitly pushed version tag or a manual workflow run with `package_release` enabled. Pushing a version tag such as `v1.0` publishes a GitHub Release only after these checks pass. The tag must match the app version and have a corresponding file in `release-notes/`.
 
-When `NixMindUpdatesEnabled` is true, releases also publish a signed `appcast.xml` for in-app updates. Maintainers must configure the update-signing secret once before tagging an updater-enabled release; see [UPDATES.md](UPDATES.md). Normal branch and pull-request checks use temporary test keys and do not need that secret.
+When `NixMindUpdatesEnabled` is true, releases also publish a signed `appcast.xml` for in-app updates. Maintainers must configure the update-signing secret once before tagging an updater-enabled release; see [UPDATES.md](UPDATES.md). Normal branch and pull-request checks use temporary test keys. Release tags additionally require the configured production signing secret.
 
 Source code, the Xcode project, tests, scripts, and the sample workbook are tracked. Build outputs, local MCP configurations, and personal Xcode settings are excluded. Run `python3 scripts/create-project.py` if you add Swift source files and need to regenerate the project.
