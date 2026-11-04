@@ -77,6 +77,7 @@ enum MapFormats {
                     topic.color = extra?["color"] as? Int ?? topic.color
                     topic.slot = extra?["slot"] as? Int ?? (depth == 1 ? branch : nil)
                     if let style = extra?["style"] as? [String: Any] { topic.style = try JSONDecoder().decode(TopicStyle.self, from: JSONSerialization.data(withJSONObject: style)) }
+                    if let style = extra?["connectionStyle"] as? [String: Any] { topic.connectionStyle = try JSONDecoder().decode(ConnectionStyle.self, from: JSONSerialization.data(withJSONObject: style)) }
                     if let value = extra?["structure"] as? String { topic.structure = NodeStructure(rawValue: value) }
                     topics.append(topic)
                     let children = object["children"] as? [String: Any] ?? [:]
@@ -109,6 +110,7 @@ enum MapFormats {
                     var extra: [String: Any] = ["color": node.color]
                     if let slot = node.slot { extra["slot"] = slot }
                     if let style = node.style { extra["style"] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(style)) }
+                    if let style = node.connectionStyle { extra["connectionStyle"] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(style)) }
                     if let structure = node.structure { extra["structure"] = structure.rawValue }
                     let style = node.appearance
                     var properties: [String: Any] = ["fo:font-family": style.fontFamily == "System" ? "Helvetica Neue" : style.fontFamily, "fo:font-size": style.fontSize, "fo:font-weight": style.bold ? "bold" : "normal", "fo:font-style": style.italic ? "italic" : "normal", "fo:text-align": style.alignment.rawValue, "svg:fill": node.resolvedFill.hexString, "fo:color": node.resolvedText.hexString, "border-line-color": node.resolvedBorder.hexString, "border-line-width": style.borderWidth]
@@ -136,7 +138,8 @@ enum MapFormats {
         func node(_ topic: Topic) -> String {
             let note = topic.note.isEmpty ? "" : "<richcontent TYPE=\"NOTE\"><html><head/><body><p>\(escape(topic.note))</p></body></html></richcontent>"
             let style = topic.style.flatMap { try? JSONEncoder().encode($0).base64EncodedString() } ?? ""
-            return "<node ID=\"\(escape(topic.id))\" TEXT=\"\(escape(topic.title))\" POSITION=\"\(map.direction(of: topic.id) < 0 ? "left" : "right")\" NIX_X=\"\(topic.x)\" NIX_Y=\"\(topic.y)\" NIX_COLOR=\"\(topic.color)\" NIX_SLOT=\"\(topic.slot ?? -1)\" NIX_STYLE=\"\(style)\" NIX_STRUCTURE=\"\(topic.structure?.rawValue ?? "")\">\(note)\((children[topic.id] ?? []).map(node).joined())</node>"
+            let connection = topic.connectionStyle.flatMap { try? JSONEncoder().encode($0).base64EncodedString() } ?? ""
+            return "<node ID=\"\(escape(topic.id))\" TEXT=\"\(escape(topic.title))\" POSITION=\"\(map.direction(of: topic.id) < 0 ? "left" : "right")\" NIX_X=\"\(topic.x)\" NIX_Y=\"\(topic.y)\" NIX_COLOR=\"\(topic.color)\" NIX_SLOT=\"\(topic.slot ?? -1)\" NIX_STYLE=\"\(style)\" NIX_CONNECTION=\"\(connection)\" NIX_STRUCTURE=\"\(topic.structure?.rawValue ?? "")\">\(note)\((children[topic.id] ?? []).map(node).joined())</node>"
         }
         return Data("<?xml version=\"1.0\" encoding=\"UTF-8\"?><map version=\"1.0.1\">\(node(map.root))</map>".utf8)
     }
@@ -166,6 +169,12 @@ private final class FreeMindReader: NSObject, XMLParserDelegate {
             let slot = Int(attributes["NIX_SLOT"] ?? "")
             topics.append(Topic(id: attributes["ID"] ?? UUID().uuidString, parentID: parent, title: attributes["TEXT"] ?? "Idea", x: Double(attributes["NIX_X"] ?? "") ?? x, y: Double(attributes["NIX_Y"] ?? "") ?? ((parentNode?.y ?? 0) + offset.y), color: Int(attributes["NIX_COLOR"] ?? "") ?? branch % 6, slot: slot == -1 ? nil : (slot ?? (parentNode?.parentID == nil ? siblings : nil))))
             if let value = attributes["NIX_STYLE"], let data = Data(base64Encoded: value) { topics[topics.count - 1].style = try? JSONDecoder().decode(TopicStyle.self, from: data) }
+            if let value = attributes["NIX_CONNECTION"], !value.isEmpty {
+                do {
+                    guard let data = Data(base64Encoded: value) else { throw MapError.invalid }
+                    topics[topics.count - 1].connectionStyle = try JSONDecoder().decode(ConnectionStyle.self, from: data)
+                } catch { failure = MapError.invalid; parser.abortParsing(); return }
+            }
             if let value = attributes["NIX_STRUCTURE"] { topics[topics.count - 1].structure = NodeStructure(rawValue: value) }
             stack.append(topics.last!.id)
         } else if name == "richcontent" { richType = attributes["TYPE"]; richText = "" }

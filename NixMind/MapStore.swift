@@ -17,7 +17,7 @@ struct OutlineRevealRequest: Equatable { let id: String; let token = UUID() }
     private var cachedOutline: [OutlineItem]?
     private var cachedTopicIndices: [String: Int]?
     let viewport = CanvasViewport()
-    @Published var selectedID: String
+    @Published var selectedID: String?
     @Published var mcpSettingsVisible = false
     @Published var searchVisible = false
     @Published var searchFocusRequest = UUID()
@@ -25,6 +25,7 @@ struct OutlineRevealRequest: Equatable { let id: String; let token = UUID() }
     var zoom: Double { get { viewport.zoom } set { viewport.zoom = newValue } }
     @Published var sidebarVisible = true
     @Published var inspectorVisible = true
+    @Published var inspectingConnection = false
     @Published var mode = EditorMode.mindMap
     @Published var toast: String?
     @Published var editingOutlineID: String?
@@ -39,7 +40,7 @@ struct OutlineRevealRequest: Equatable { let id: String; let token = UUID() }
         let value = Dictionary(uniqueKeysWithValues: map.topics.indices.map { (map.topics[$0].id, $0) })
         cachedTopicIndices = value; return value
     }
-    var selected: Topic { topicIndices[selectedID].map { map.topics[$0] } ?? map.root }
+    var selected: Topic? { selectedID.flatMap { topicIndices[$0] }.map { map.topics[$0] } }
     var outline: [OutlineItem] {
         if let cachedOutline { return cachedOutline }
         let children = map.adjacency
@@ -63,7 +64,7 @@ struct OutlineRevealRequest: Equatable { let id: String; let token = UUID() }
         manager?.endUndoGrouping()
         let changedSheet = workbook.activeSheetID != next.activeSheetID
         workbook = next
-        if map.topic(selectedID) == nil { selectedID = map.root.id }
+        if let selectedID, map.topic(selectedID) == nil { self.selectedID = nil; inspectingConnection = false }
         if changedSheet { DispatchQueue.main.async { [weak self] in self?.canvas?.fit() } }
     }
     func apply(_ next: MindMap, action: String) {
@@ -109,6 +110,11 @@ struct OutlineRevealRequest: Equatable { let id: String; let token = UUID() }
         canvas?.finishEditing(); selectedID = id
         if mode == .mindMap { if center { canvas?.center(on: id) }; canvas?.window?.makeFirstResponder(canvas) }
     }
+    func clearSelection() {
+        canvas?.finishEditing(); canvas?.cancelInteraction()
+        selectedID = nil; inspectingConnection = false; editingOutlineID = nil
+        if mode == .mindMap { canvas?.window?.makeFirstResponder(canvas) }
+    }
     func showSearch() {
         canvas?.finishEditing(); editingOutlineID = nil
         canvas?.window?.makeFirstResponder(nil)
@@ -139,11 +145,12 @@ struct OutlineRevealRequest: Equatable { let id: String; let token = UUID() }
         return true
     }
     func editSelected() {
+        guard selectedID != nil else { return }
         if mode == .outliner { editingOutlineID = selectedID }
         else { canvas?.editSelected() }
     }
-    func addChild(_ id: String? = nil) { addTopic(parent: id ?? selectedID) }
-    func addSibling(_ id: String? = nil) { let id = id ?? selectedID; addTopic(parent: map.topic(id)?.parentID ?? id) }
+    func addChild(_ id: String? = nil) { addTopic(parent: id ?? selectedID ?? map.root.id) }
+    func addSibling(_ id: String? = nil) { let id = id ?? selectedID ?? map.root.id; addTopic(parent: map.topic(id)?.parentID ?? id) }
     private func addTopic(parent: String) {
         canvas?.finishEditing()
         var next = map
@@ -164,6 +171,7 @@ struct OutlineRevealRequest: Equatable { let id: String; let token = UUID() }
         next.topics[index].note = String(text.prefix(1_000_000)); apply(next, action: "Edit notes")
     }
     func setColor(_ color: Int) {
+        guard let selectedID else { return }
         var next = map; let ids = map.descendants(of: selectedID)
         for index in next.topics.indices where ids.contains(next.topics[index].id) { next.topics[index].color = color }
         apply(next, action: "Change branch color")
@@ -184,6 +192,37 @@ struct OutlineRevealRequest: Equatable { let id: String; let token = UUID() }
         next.topics[index].structure = structure; next.arrange()
         apply(next, action: "Change structure"); canvas?.fit(onlyShrink: true)
     }
+    func selectConnection(_ childID: String) {
+        guard map.topic(childID)?.parentID != nil else { return }
+        select(childID); inspectingConnection = true; inspectorVisible = true
+    }
+    func setConnectionStyle(_ change: (inout ConnectionStyle) -> Void) {
+        canvas?.finishEditing()
+        var next = map
+        guard let index = next.topics.firstIndex(where: { $0.id == selectedID }), next.topics[index].parentID != nil else { return }
+        var style = next.topics[index].connectionAppearance; change(&style)
+        guard (try? style.validate()) != nil else { return }
+        next.topics[index].connectionStyle = style
+        apply(next, action: "Format connection")
+    }
+    func setConnectionLabel(_ id: String, text: String) {
+        var next = map
+        guard let index = next.topics.firstIndex(where: { $0.id == id }), next.topics[index].parentID != nil else { return }
+        var style = next.topics[index].connectionAppearance
+        style.label = String(text.prefix(500)); next.topics[index].connectionStyle = style
+        apply(next, action: "Edit connection label")
+    }
+    func setConnectionLabelWidth(_ id: String, width: Double?) {
+        setConnectionLabelSize(id, width: width, height: map.topic(id)?.connectionAppearance.labelHeight)
+    }
+    func setConnectionLabelSize(_ id: String, width: Double?, height: Double?) {
+        var next = map
+        guard let index = next.topics.firstIndex(where: { $0.id == id }), next.topics[index].parentID != nil else { return }
+        var style = next.topics[index].connectionAppearance; style.labelWidth = width; style.labelHeight = height
+        guard (try? style.validate()) != nil else { return }
+        next.topics[index].connectionStyle = style
+        apply(next, action: "Resize connection label")
+    }
     func arrange() {
         canvas?.finishEditing(); var next = map; next.arrange()
         apply(next, action: "Arrange sheet"); canvas?.fit()
@@ -194,10 +233,11 @@ struct OutlineRevealRequest: Equatable { let id: String; let token = UUID() }
     }
     func deleteSelection() {
         canvas?.finishEditing()
+        guard let selectedID, let selected else { return }
         guard selectedID != map.root.id else { showToast("Keep the central topic. Rename it or start a new sheet."); return }
         let parent = selected.parentID!
         var next = map; next.remove(selectedID)
-        apply(next, action: "Delete branch"); selectedID = parent; editingOutlineID = nil
+        apply(next, action: "Delete branch"); self.selectedID = parent; editingOutlineID = nil
     }
     func indent(_ id: String) {
         guard let node = map.topic(id), let parent = node.parentID else { return }

@@ -110,7 +110,7 @@ import Combine
         switch action {
         case "read_map":
             MCPState.shared.activity("Client read \(target.title)")
-            return ["document": summary(doc), "map": try context(map, sheet: target), "selectedTopicID": target.id == doc.store.activeSheet.id ? doc.store.selectedID as Any : NSNull(), "markdown": AIMap.markdown(map)]
+            return ["document": summary(doc), "map": try context(map, sheet: target), "selectedTopicID": target.id == doc.store.activeSheet.id ? (doc.store.selectedID as Any? ?? NSNull()) : NSNull(), "markdown": AIMap.markdown(map)]
         case "read_topic":
             guard let id = request["topic_id"] as? String, let topic = map.topic(id) else { throw AIError("Topic ID not found in this sheet.") }
             var ancestors: [Topic] = []; var parent = topic.parentID

@@ -88,6 +88,57 @@ struct CanvasSpatialIndex {
     let path: NSBezierPath
     let bounds: CGRect
     let color: NSColor
+    let style: ConnectionStyle
+    let markers: [NSBezierPath]
+    let label: NSAttributedString?
+    let labelRect: CGRect
+    let labelTextRect: CGRect
+
+    init(parentID: String, childID: String, start: CGPoint, end: CGPoint, style: ConnectionStyle, color: NSColor, label: NSAttributedString? = nil, right: Bool? = nil) {
+        self.parentID = parentID; self.childID = childID; self.start = start; self.end = end; self.style = style; self.color = color
+        let right = right ?? (end.x >= start.x)
+        path = CanvasScene.connection(from: start, to: end, right: right, shape: style.shape)
+        style.apply(to: path)
+        let delta = CGPoint(x: end.x - start.x, y: end.y - start.y)
+        let tangent: CGPoint
+        if style.shape == .curved { tangent = CGPoint(x: right ? 1 : -1, y: 0) }
+        else if style.shape == .straight || delta.x == 0 { tangent = delta }
+        else { tangent = CGPoint(x: delta.x >= 0 ? 1 : -1, y: 0) }
+        var endings: [NSBezierPath] = []
+        func arrow(at tip: CGPoint, direction: CGPoint) -> NSBezierPath {
+            let length = hypot(direction.x, direction.y)
+            let unit = length > 0 ? CGPoint(x: direction.x / length, y: direction.y / length) : CGPoint(x: 1, y: 0)
+            let size = max(9, style.width * 3)
+            let base = CGPoint(x: tip.x - unit.x * size, y: tip.y - unit.y * size)
+            let arrow = NSBezierPath(); arrow.move(to: tip)
+            arrow.line(to: CGPoint(x: base.x - unit.y * size * 0.45, y: base.y + unit.x * size * 0.45))
+            arrow.line(to: CGPoint(x: base.x + unit.y * size * 0.45, y: base.y - unit.x * size * 0.45)); arrow.close()
+            return arrow
+        }
+        if style.start == .arrow { endings.append(arrow(at: start, direction: CGPoint(x: -tangent.x, y: -tangent.y))) }
+        if style.end == .arrow { endings.append(arrow(at: end, direction: tangent)) }
+        markers = endings
+        if style.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { self.label = nil; labelRect = .null; labelTextRect = .null }
+        else {
+            let text = label ?? NSAttributedString(string: style.label, attributes: style.labelAppearance.textAttributes(color: style.labelColor.flatMap(NSColor.init(hex:)) ?? Palette.ink))
+            self.label = text
+            let natural = text.boundingRect(with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading])
+            let contentWidth = style.labelWidth.map { CGFloat($0) } ?? max(1, ceil(natural.width))
+            let textHeight = ceil(style.labelWidth == nil ? natural.height : text.boundingRect(with: CGSize(width: contentWidth, height: CGFloat.greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading]).height)
+            let contentHeight = style.labelHeight.map { CGFloat($0) } ?? textHeight
+            labelRect = CGRect(x: (start.x + end.x) / 2 - contentWidth / 2 - 7, y: (start.y + end.y) / 2 - contentHeight / 2 - 4, width: contentWidth + 14, height: contentHeight + 8)
+            let visibleHeight = min(contentHeight, textHeight)
+            labelTextRect = CGRect(x: labelRect.minX + 7, y: labelRect.midY - visibleHeight / 2, width: contentWidth, height: visibleHeight)
+        }
+        var box = path.controlPointBounds.insetBy(dx: -style.width / 2 - 1, dy: -style.width / 2 - 1)
+        for marker in markers { box = box.union(marker.bounds) }
+        bounds = box.union(labelRect)
+    }
+
+    func contains(_ point: CGPoint, tolerance: CGFloat) -> Bool {
+        if labelRect.contains(point) || markers.contains(where: { $0.contains(point) }) { return true }
+        return path.cgPath.copy(strokingWithWidth: max(style.width, tolerance * 2), lineCap: .round, lineJoin: .round, miterLimit: 10).contains(point)
+    }
 }
 
 @MainActor final class CanvasScene {
@@ -118,9 +169,11 @@ struct CanvasSpatialIndex {
             let right = child.topic.x >= parent.topic.x
             let start = CGPoint(x: right ? parent.bounds.maxX : parent.bounds.minX, y: parent.bounds.midY)
             let end = CGPoint(x: right ? child.bounds.minX : child.bounds.maxX, y: child.bounds.midY)
-            let path = Self.connection(from: start, to: end, right: right)
             incomingEdge[child.topic.id] = edges.count
-            edges.append(CanvasRenderEdge(parentID: parentID, childID: child.topic.id, start: start, end: end, path: path, bounds: path.controlPointBounds.insetBy(dx: -2, dy: -2), color: Palette.color(child.topic.color).withAlphaComponent(0.55)))
+            let style = child.topic.connectionAppearance
+            let old = previous?.incomingEdge[child.topic.id].map { previous!.edges[$0] }
+            let edge = CanvasRenderEdge(parentID: parentID, childID: child.topic.id, start: start, end: end, style: style, color: child.topic.resolvedConnectionColor, label: old?.style == style ? old?.label : nil, right: right)
+            edges.append(edge); bounds = bounds.union(edge.bounds)
         }
         nodeIndex = CanvasSpatialIndex(nodes.map(\.bounds))
         edgeIndex = CanvasSpatialIndex(edges.map(\.bounds))
@@ -137,10 +190,17 @@ struct CanvasSpatialIndex {
             return topic.x < root.x ? -1 : 1
         }
     }
-    static func connection(from start: CGPoint, to end: CGPoint, right: Bool) -> NSBezierPath {
+    static func connection(from start: CGPoint, to end: CGPoint, right: Bool, shape: ConnectionShape = .curved) -> NSBezierPath {
         let bend = max(42, abs(end.x - start.x) * 0.5)
         let path = NSBezierPath(); path.move(to: start)
-        path.curve(to: end, controlPoint1: CGPoint(x: start.x + (right ? bend : -bend), y: start.y), controlPoint2: CGPoint(x: end.x + (right ? -bend : bend), y: end.y))
+        switch shape {
+        case .curved:
+            path.curve(to: end, controlPoint1: CGPoint(x: start.x + (right ? bend : -bend), y: start.y), controlPoint2: CGPoint(x: end.x + (right ? -bend : bend), y: end.y))
+        case .straight: path.line(to: end)
+        case .orthogonal:
+            let middle = (start.x + end.x) / 2
+            path.line(to: CGPoint(x: middle, y: start.y)); path.line(to: CGPoint(x: middle, y: end.y)); path.line(to: end)
+        }
         return path
     }
     static func shapePath(_ shape: NodeShape, rect: CGRect, radius: CGFloat = 14) -> NSBezierPath {

@@ -36,16 +36,26 @@ enum NodeStructure: String, Codable, CaseIterable { case automatic, leftToRight,
     var title: String { switch self { case .automatic: return "Automatic"; case .leftToRight: return "Left to right"; case .rightToLeft: return "Right to left" } }
 }
 
-extension Topic {
-    var appearance: TopicStyle { style ?? .standard(root: parentID == nil) }
+extension TopicStyle {
     func font(scale: CGFloat = 1) -> NSFont {
-        let style = appearance
-        let size = CGFloat(style.fontSize) * scale
-        let base = style.fontFamily == "System" ? NSFont.systemFont(ofSize: size) : (NSFont(descriptor: NSFontDescriptor().withFamily(style.fontFamily), size: size) ?? NSFont.systemFont(ofSize: size))
+        let size = CGFloat(fontSize) * scale
+        let base = fontFamily == "System" ? NSFont.systemFont(ofSize: size) : (NSFont(descriptor: NSFontDescriptor().withFamily(fontFamily), size: size) ?? NSFont.systemFont(ofSize: size))
         var traits = base.fontDescriptor.symbolicTraits
-        if style.bold { traits.insert(.bold) }; if style.italic { traits.insert(.italic) }
+        if bold { traits.insert(.bold) }; if italic { traits.insert(.italic) }
         return NSFont(descriptor: base.fontDescriptor.withSymbolicTraits(traits), size: size) ?? base
     }
+    func textAttributes(color: NSColor, scale: CGFloat = 1) -> [NSAttributedString.Key: Any] {
+        let paragraph = NSMutableParagraphStyle(); paragraph.alignment = alignment.native; paragraph.lineBreakMode = .byWordWrapping
+        var result: [NSAttributedString.Key: Any] = [.font: font(scale: scale), .foregroundColor: color, .paragraphStyle: paragraph]
+        if underline { result[.underlineStyle] = NSUnderlineStyle.single.rawValue }
+        if strikethrough { result[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
+        return result
+    }
+}
+
+extension Topic {
+    var appearance: TopicStyle { style ?? .standard(root: parentID == nil) }
+    func font(scale: CGFloat = 1) -> NSFont { appearance.font(scale: scale) }
     var layoutSize: CGSize {
         let font = font()
         let measured = (title as NSString).size(withAttributes: [.font: font]).width
@@ -60,11 +70,7 @@ extension Topic {
     var resolvedText: NSColor { appearance.textColor.flatMap(NSColor.init(hex:)) ?? (parentID == nil ? .white : Palette.ink) }
     var resolvedBorder: NSColor { appearance.borderColor.flatMap(NSColor.init(hex:)) ?? Palette.color(color).withAlphaComponent(0.5) }
     func textAttributes(scale: CGFloat = 1) -> [NSAttributedString.Key: Any] {
-        let paragraph = NSMutableParagraphStyle(); paragraph.alignment = appearance.alignment.native; paragraph.lineBreakMode = .byWordWrapping
-        var result: [NSAttributedString.Key: Any] = [.font: font(scale: scale), .foregroundColor: resolvedText, .paragraphStyle: paragraph]
-        if appearance.underline { result[.underlineStyle] = NSUnderlineStyle.single.rawValue }
-        if appearance.strikethrough { result[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
-        return result
+        appearance.textAttributes(color: resolvedText, scale: scale)
     }
 }
 

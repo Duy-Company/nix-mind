@@ -24,9 +24,24 @@ struct CanvasHost: NSViewRepresentable {
     var panStart = CGPoint.zero
     var dragMap: MindMap?
     var dragging = false
+    private var pendingDeselection = false
     var spaceDown = false
     var editor: NSTextField?
     var editingID: String?
+    var editingConnectionID: String?
+    private struct LabelResize {
+        let id: String
+        let position: LabelResizePosition
+        let startPoint: CGPoint
+        let startWidth: CGFloat
+        let startHeight: CGFloat
+        let revision: UInt64
+        let selection: NSRange?
+        var width: Double?
+        var height: Double?
+        var moved = false
+    }
+    private var labelResize: LabelResize?
     private var fieldEditorBackground: (NSTextView, Bool, NSColor)?
     var accessibleNodes: [String: CanvasAccessibleElement] = [:]
     var subscription: AnyCancellable?
@@ -68,6 +83,7 @@ struct CanvasHost: NSViewRepresentable {
     @discardableResult func prepareScene() -> CanvasScene {
         if sceneRevision != store.mapRevision || scene == nil {
             if dragMap != nil && dragRevision != store.mapRevision { cancelDrag() }
+            if let resize = labelResize, resize.revision != store.mapRevision { labelResize = nil }
             scene = CanvasScene(map: store.map, previous: scene)
             sceneRevision = store.mapRevision
         }
@@ -127,10 +143,26 @@ struct CanvasHost: NSViewRepresentable {
         let visible = visibleNodes(in: area, scene: scene)
         context.saveGState()
         context.translateBy(x: pan.x, y: pan.y); context.scaleBy(x: scale, y: scale)
-        for index in visibleEdges(in: area, scene: scene) { drawEdge(scene.edges[index], in: area, scene: scene, context: context) }
+        let visibleConnections = visibleEdges(in: area, scene: scene).sorted()
+        let hasLabels = visibleConnections.contains { scene.edges[$0].label != nil && scene.edges[$0].style.labelFontSize * scale >= 6 }
+        if store.inspectingConnection, let id = store.selectedID, let index = scene.incomingEdge[id], visibleConnections.contains(index) {
+            context.beginTransparencyLayer(auxiliaryInfo: nil)
+            drawEdge(scene.edges[index], in: area, scene: scene, context: context, pass: .halo)
+            for labelIndex in visibleConnections { drawEdge(scene.edges[labelIndex], in: area, scene: scene, context: context, pass: .haloGap) }
+            context.endTransparencyLayer()
+        }
+        // Erase gaps from a separate connection layer, preserving the canvas and its dots.
+        if hasLabels { context.beginTransparencyLayer(auxiliaryInfo: nil) }
+        for index in visibleConnections { drawEdge(scene.edges[index], in: area, scene: scene, context: context) }
+        if hasLabels {
+            for index in visibleConnections { drawEdge(scene.edges[index], in: area, scene: scene, context: context, pass: .gap) }
+            context.endTransparencyLayer()
+            for index in visibleConnections { drawEdge(scene.edges[index], in: area, scene: scene, context: context, pass: .label) }
+        }
         for index in visible { drawNode(scene.nodes[index], showShadow: scale >= 0.5 && visible.count < 250, context: context) }
         context.restoreGState()
-        if let selected = scene.node(store.selectedID)?.topic {
+        drawLabelContainer()
+        if let selected = store.selectedID.flatMap({ scene.node($0)?.topic }) {
             for handle in handles(selected) where handle.rect.intersects(bounds) { drawHandle(handle, node: selected) }
         }
     }
@@ -154,23 +186,154 @@ struct CanvasHost: NSViewRepresentable {
         NSColor(srgbRed: 0.83, green: 0.82, blue: 0.80, alpha: 0.6).setFill(); dotsPath?.fill()
         context.restoreGState()
     }
-    private func drawEdge(_ edge: CanvasRenderEdge, in area: CGRect, scene: CanvasScene, context: CGContext) {
+    private enum ConnectionRenderPass: Equatable { case halo, haloGap, stroke, gap, label }
+    private func drawEdge(_ edge: CanvasRenderEdge, in area: CGRect, scene: CanvasScene, context: CGContext, pass: ConnectionRenderPass = .stroke) {
+        let edge = previewConnection(edge, scene: scene)
+        if [.gap, .haloGap, .label].contains(pass) && (edge.label == nil || edge.style.labelFontSize * scale < 6) { return }
         let parentMoves = movingIDs.contains(edge.parentID), childMoves = movingIDs.contains(edge.childID)
-        edge.color.setStroke()
         if parentMoves != childMoves, let parent = scene.node(edge.parentID), let child = scene.node(edge.childID) {
             let a = worldRect(parent), b = worldRect(child), right = b.midX >= a.midX
             let start = CGPoint(x: right ? a.maxX : a.minX, y: a.midY), end = CGPoint(x: right ? b.minX : b.maxX, y: b.midY)
-            let path = CanvasScene.connection(from: start, to: end, right: right)
-            if path.controlPointBounds.insetBy(dx: -2, dy: -2).intersects(area) { path.lineWidth = 2.2; path.stroke() }
+            let moved = CanvasRenderEdge(parentID: edge.parentID, childID: edge.childID, start: start, end: end, style: edge.style, color: edge.color, label: edge.label, right: right)
+            if moved.bounds.intersects(area) { paintEdge(moved, context: context, pass: pass) }
         } else {
             // Connections smaller than a couple of pixels add no readable detail.
             guard max(edge.bounds.width, edge.bounds.height) * scale >= 2 else { return }
             if parentMoves { context.saveGState(); context.translateBy(x: dragOffset.x, y: dragOffset.y) }
-            edge.path.lineWidth = 2.2; edge.path.stroke()
+            paintEdge(edge, context: context, pass: pass)
             if parentMoves { context.restoreGState() }
         }
     }
+    private func paintEdge(_ edge: CanvasRenderEdge, context: CGContext, pass: ConnectionRenderPass) {
+        if pass == .halo {
+            let halo = edge.path.copy() as! NSBezierPath
+            halo.setLineDash([], count: 0, phase: 0); halo.lineWidth = edge.style.width + 7 / scale
+            Palette.purple.withAlphaComponent(0.16).setStroke(); halo.stroke()
+            return
+        }
+        if pass == .haloGap {
+            context.saveGState()
+            context.setBlendMode(.destinationOut)
+            context.setShadow(offset: .zero, blur: 10 / scale, color: NSColor.black.cgColor)
+            context.setFillColor(NSColor.black.cgColor)
+            let gap = edge.labelRect.insetBy(dx: -3 / scale, dy: -2 / scale)
+            context.addPath(CGPath(roundedRect: gap, cornerWidth: 6 / scale, cornerHeight: 6 / scale, transform: nil)); context.fillPath()
+            context.restoreGState()
+            return
+        }
+        if pass == .gap {
+            context.saveGState(); context.setBlendMode(.clear); context.fill(edge.labelRect); context.restoreGState()
+            return
+        }
+        if pass == .label {
+            guard editingConnectionID != edge.childID else { return }
+            if let text = edge.label {
+                context.saveGState(); context.clip(to: edge.labelRect.insetBy(dx: 7, dy: 4))
+                text.draw(with: edge.labelTextRect, options: [.usesLineFragmentOrigin, .usesFontLeading, .truncatesLastVisibleLine])
+                context.restoreGState()
+            }
+            return
+        }
+        let selected = store.inspectingConnection && store.selectedID == edge.childID
+        let color = selected ? (edge.color.blended(withFraction: 0.35, of: Palette.purple) ?? edge.color) : edge.color
+        color.setStroke(); edge.path.stroke()
+        color.setFill(); for marker in edge.markers { marker.fill() }
+    }
+    func connection(at screenPoint: CGPoint) -> CanvasRenderEdge? {
+        let point = world(screenPoint), scene = prepareScene(), tolerance = 6 / scale
+        let area = CGRect(x: point.x - tolerance, y: point.y - tolerance, width: tolerance * 2, height: tolerance * 2)
+        let candidates = scene.edgeIndex.query(area).sorted().reversed().map { scene.edges[$0] }
+        // A readable label takes priority over another line crossing behind it.
+        return candidates.first { $0.labelRect.contains(point) } ?? candidates.first { $0.contains(point, tolerance: tolerance) }
+    }
     func shapePath(_ shape: NodeShape, rect: CGRect) -> NSBezierPath { CanvasScene.shapePath(shape, rect: rect, radius: 14 * scale) }
+    enum LabelResizePosition: CaseIterable {
+        case left, right, top, bottom, topLeft, topRight, bottomLeft, bottomRight
+        var right: Bool { self == .right || self == .topRight || self == .bottomRight }
+        var horizontalDirection: CGFloat {
+            switch self { case .left, .topLeft, .bottomLeft: return -1; case .right, .topRight, .bottomRight: return 1; case .top, .bottom: return 0 }
+        }
+        var verticalDirection: CGFloat {
+            switch self { case .top, .topLeft, .topRight: return -1; case .bottom, .bottomLeft, .bottomRight: return 1; case .left, .right: return 0 }
+        }
+        @MainActor var cursor: NSCursor {
+            if #available(macOS 15.0, *) {
+                let position: NSCursor.FrameResizePosition
+                switch self {
+                case .left: position = .left
+                case .right: position = .right
+                case .top: position = .top
+                case .bottom: position = .bottom
+                case .topLeft: position = .topLeft
+                case .topRight: position = .topRight
+                case .bottomLeft: position = .bottomLeft
+                case .bottomRight: position = .bottomRight
+                }
+                return .frameResize(position: position, directions: .all)
+            }
+            switch self {
+            case .left, .right: return .resizeLeftRight
+            case .top, .bottom: return .resizeUpDown
+            case .topLeft, .bottomRight: return MindMapCanvas.descendingLabelResizeCursor
+            case .topRight, .bottomLeft: return MindMapCanvas.ascendingLabelResizeCursor
+            }
+        }
+    }
+    struct LabelResizeRegion {
+        let rect: CGRect
+        let position: LabelResizePosition
+        var right: Bool { position.right }
+    }
+    private static let descendingLabelResizeCursor = diagonalLabelCursor(descending: true)
+    private static let ascendingLabelResizeCursor = diagonalLabelCursor(descending: false)
+    private static func diagonalLabelCursor(descending: Bool) -> NSCursor {
+        let image = NSImage(size: CGSize(width: 24, height: 24), flipped: true) { _ in
+            let start = CGPoint(x: 5, y: descending ? 5 : 19), end = CGPoint(x: 19, y: descending ? 19 : 5)
+            let path = NSBezierPath(); path.move(to: start); path.line(to: end)
+            for (tip, other) in [(start, end), (end, start)] {
+                let dx = (other.x - tip.x) / 14, dy = (other.y - tip.y) / 14
+                path.move(to: CGPoint(x: tip.x + dx * 5 - dy * 3, y: tip.y + dy * 5 + dx * 3)); path.line(to: tip)
+                path.line(to: CGPoint(x: tip.x + dx * 5 + dy * 3, y: tip.y + dy * 5 - dx * 3))
+            }
+            path.lineCapStyle = .round; path.lineJoinStyle = .round
+            NSColor.white.setStroke(); path.lineWidth = 4; path.stroke()
+            NSColor.black.setStroke(); path.lineWidth = 1.6; path.stroke()
+            return true
+        }
+        return NSCursor(image: image, hotSpot: CGPoint(x: 12, y: 12))
+    }
+    private func selectedLabelEdge() -> CanvasRenderEdge? {
+        guard store.inspectingConnection else { return nil }
+        let scene = prepareScene()
+        guard let id = store.selectedID, let index = scene.incomingEdge[id] else { return nil }
+        let edge = previewConnection(scene.edges[index], scene: scene)
+        return edge.label != nil && edge.style.labelFontSize * scale >= 6 ? edge : nil
+    }
+    func labelResizeRegions() -> [LabelResizeRegion] {
+        guard let edge = selectedLabelEdge() else { return [] }
+        let box = screenRect(edge.labelRect)
+        return [
+            LabelResizeRegion(rect: CGRect(x: box.minX - 4, y: box.minY + 5, width: 8, height: max(0, box.height - 10)), position: .left),
+            LabelResizeRegion(rect: CGRect(x: box.maxX - 4, y: box.minY + 5, width: 8, height: max(0, box.height - 10)), position: .right),
+            LabelResizeRegion(rect: CGRect(x: box.minX + 5, y: box.minY - 4, width: max(0, box.width - 10), height: 8), position: .top),
+            LabelResizeRegion(rect: CGRect(x: box.minX + 5, y: box.maxY - 4, width: max(0, box.width - 10), height: 8), position: .bottom),
+            LabelResizeRegion(rect: CGRect(x: box.minX - 5, y: box.minY - 5, width: 10, height: 10), position: .topLeft),
+            LabelResizeRegion(rect: CGRect(x: box.maxX - 5, y: box.minY - 5, width: 10, height: 10), position: .topRight),
+            LabelResizeRegion(rect: CGRect(x: box.minX - 5, y: box.maxY - 5, width: 10, height: 10), position: .bottomLeft),
+            LabelResizeRegion(rect: CGRect(x: box.maxX - 5, y: box.maxY - 5, width: 10, height: 10), position: .bottomRight)
+        ]
+    }
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let local = convert(point, from: superview)
+        if !spaceDown && bounds.contains(local) && labelResizeRegions().contains(where: { $0.rect.contains(local) }) { return self }
+        return super.hitTest(point)
+    }
+    private func drawLabelContainer() {
+        guard let edge = selectedLabelEdge() else { return }
+        let outline = NSBezierPath(roundedRect: screenRect(edge.labelRect), xRadius: 4, yRadius: 4)
+        outline.lineWidth = 1; outline.setLineDash([3, 3], count: 2, phase: 0)
+        Palette.purple.withAlphaComponent(0.35).setStroke(); outline.stroke()
+    }
     func textRect(_ node: Topic) -> CGRect {
         let r = rect(node)
         if node.appearance.shape == .diamond { return r.insetBy(dx: r.width * 0.25, dy: r.height * 0.25) }
@@ -218,16 +381,34 @@ struct CanvasHost: NSViewRepresentable {
         else {
             let scene = prepareScene()
             for index in visibleNodes(in: visibleWorldRect, scene: scene) { addCursorRect(screenRect(worldRect(scene.nodes[index])).intersection(bounds), cursor: .openHand) }
-            if let selected = scene.node(store.selectedID)?.topic {
+            if let selected = store.selectedID.flatMap({ scene.node($0)?.topic }) {
                 for handle in handles(selected) where handle.rect.intersects(bounds) { addCursorRect(handle.rect.intersection(bounds), cursor: .pointingHand) }
+            }
+            for index in visibleEdges(in: visibleWorldRect, scene: scene) {
+                let edge = scene.edges[index]
+                if edge.label != nil && edge.style.labelFontSize * scale >= 6 {
+                    addCursorRect(screenRect(edge.labelTextRect).intersection(bounds), cursor: .iBeam)
+                }
+            }
+            for region in labelResizeRegions() where region.rect.intersects(bounds) {
+                addCursorRect(region.rect.intersection(bounds), cursor: region.position.cursor)
             }
         }
     }
-    private func cancelDrag() { dragID = nil; dragMap = nil; movingIDs = []; dragOffset = .zero; dragging = false }
+    private func cancelDrag() { dragID = nil; dragMap = nil; movingIDs = []; dragOffset = .zero; dragging = false; pendingDeselection = false }
+    func cancelInteraction() { cancelDrag(); labelResize = nil; needsDisplay = true; window?.invalidateCursorRects(for: self) }
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
         let scene = prepareScene()
-        if let selected = scene.node(store.selectedID)?.topic, !spaceDown {
+        if !spaceDown, let edge = selectedLabelEdge(), let handle = labelResizeRegions().reversed().first(where: { $0.rect.contains(p) }) {
+            let selection = editingConnectionID == edge.childID ? (editor?.currentEditor() as? NSTextView)?.selectedRange() : nil
+            finishEditing(); window?.makeFirstResponder(self); cancelDrag()
+            if store.map.topic(edge.childID)?.connectionAppearance.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+                labelResize = LabelResize(id: edge.childID, position: handle.position, startPoint: p, startWidth: edge.labelRect.width - 14, startHeight: edge.labelRect.height - 8, revision: store.mapRevision, selection: selection, width: edge.style.labelWidth, height: edge.style.labelHeight)
+            }
+            needsDisplay = true; return
+        }
+        if let selected = store.selectedID.flatMap({ scene.node($0)?.topic }), !spaceDown {
             for handle in handles(selected) where handle.rect.insetBy(dx: -3, dy: -3).contains(p) {
                 if handle.sibling { store.addSibling(selected.id) } else { store.addChild(selected.id) }; return
             }
@@ -238,28 +419,56 @@ struct CanvasHost: NSViewRepresentable {
         let hits = prepareScene().nodeIndex.query(CGRect(x: point.x, y: point.y, width: 0.001, height: 0.001))
         if !spaceDown, let index = hits.max() {
             let node = prepareScene().nodes[index].topic
-            store.selectedID = node.id
+            store.selectedID = node.id; store.inspectingConnection = false
             if event.clickCount == 2 { editSelected(); return }
             dragID = node.id; dragMap = store.map; dragRevision = store.mapRevision
             movingIDs = store.map.descendants(of: node.id)
+        } else if !spaceDown, let edge = connection(at: p) {
+            store.selectConnection(edge.childID)
+            if edge.style.labelFontSize * scale >= 6 && edge.labelTextRect.contains(point) {
+                editConnectionLabel(edge.childID, at: event)
+            }
+        } else if !spaceDown {
+            pendingDeselection = true
         }
         needsDisplay = true; window?.invalidateCursorRects(for: self)
     }
     override func mouseDragged(with event: NSEvent) {
+        if var resize = labelResize {
+            guard resize.revision == store.mapRevision else { labelResize = nil; needsDisplay = true; return }
+            let p = convert(event.locationInWindow, from: nil), dx = p.x - resize.startPoint.x, dy = p.y - resize.startPoint.y
+            let horizontal = resize.position.horizontalDirection, vertical = resize.position.verticalDirection
+            guard hypot(dx * abs(horizontal), dy * abs(vertical)) > 3 || resize.moved else { return }
+            if horizontal != 0 { resize.width = min(ConnectionStyle.labelWidthRange.upperBound, max(ConnectionStyle.labelWidthRange.lowerBound, resize.startWidth + 2 * horizontal * dx / scale)) }
+            if vertical != 0 { resize.height = min(ConnectionStyle.labelHeightRange.upperBound, max(ConnectionStyle.labelHeightRange.lowerBound, resize.startHeight + 2 * vertical * dy / scale)) }
+            resize.moved = true; labelResize = resize
+            needsDisplay = true; window?.invalidateCursorRects(for: self); return
+        }
         guard editor == nil else { return }
         if dragMap != nil && dragRevision != store.mapRevision { cancelDrag(); needsDisplay = true; return }
         let p = convert(event.locationInWindow, from: nil)
         let dx = p.x - dragStart.x, dy = p.y - dragStart.y
         guard hypot(dx, dy) > 3 else { return }
+        pendingDeselection = false
         dragging = true
         if dragID != nil { dragOffset = CGPoint(x: dx / scale, y: dy / scale) }
         else { pan = CGPoint(x: panStart.x + dx, y: panStart.y + dy) }
         viewportDidChange()
     }
     override func mouseUp(with event: NSEvent) {
+        if let resize = labelResize {
+            labelResize = nil
+            if resize.revision == store.mapRevision {
+                if resize.moved { store.setConnectionLabelSize(resize.id, width: resize.width, height: resize.height) }
+                resumeLabelEditing(resize)
+            }
+            viewportDidChange(); return
+        }
         let original = dragMap, delta = dragOffset, ids = movingIDs
+        let shouldDeselect = pendingDeselection && !dragging
         let shouldCommit = dragging && dragRevision == store.mapRevision
         cancelDrag()
+        if shouldDeselect { store.clearSelection() }
         if shouldCommit, var final = original {
             for index in final.topics.indices where ids.contains(final.topics[index].id) {
                 final.topics[index].x += delta.x; final.topics[index].y += delta.y
@@ -303,7 +512,7 @@ struct CanvasHost: NSViewRepresentable {
     }
     func editSelected() {
         finishEditing()
-        let node = store.selected
+        guard let node = store.selected else { return }
         let field = NSTextField(string: node.title); field.delegate = self
         field.font = node.font(scale: scale)
         field.alignment = node.appearance.alignment.native; field.isBordered = false; field.focusRingType = .none
@@ -316,7 +525,61 @@ struct CanvasHost: NSViewRepresentable {
         if let textView = window?.fieldEditor(true, for: field) as? NSTextView { configureFieldEditor(textView) }
         needsDisplay = true
     }
+    func editConnectionLabel(_ id: String, at event: NSEvent? = nil) {
+        finishEditing()
+        guard let node = store.map.topic(id), node.parentID != nil, let edgeIndex = prepareScene().incomingEdge[id], prepareScene().edges[edgeIndex].label != nil else { return }
+        let style = node.connectionAppearance, text = style.labelAppearance
+        let color = style.labelColor.flatMap(NSColor.init(hex:)) ?? Palette.ink
+        let field = NSTextField(string: style.label); field.delegate = self
+        field.font = text.font(scale: scale); field.alignment = text.alignment.native
+        field.isBordered = false; field.focusRingType = .none
+        field.drawsBackground = false; field.backgroundColor = .clear; field.textColor = color
+        field.attributedStringValue = NSAttributedString(string: style.label, attributes: text.textAttributes(color: color, scale: scale))
+        field.cell?.wraps = true; field.cell?.isScrollable = false
+        field.setAccessibilityLabel("Edit connection label")
+        editor = field; editingConnectionID = id; addSubview(field); positionEditor()
+        field.selectText(nil)
+        if let textView = field.currentEditor() as? NSTextView {
+            configureFieldEditor(textView)
+            positionEditor()
+            let insertion = event.map { textView.characterIndexForInsertion(at: textView.convert($0.locationInWindow, from: nil)) } ?? (style.label as NSString).length
+            textView.setSelectedRange(NSRange(location: min(insertion, (style.label as NSString).length), length: 0))
+        }
+        needsDisplay = true
+    }
+    private func draftConnection() -> CanvasRenderEdge? {
+        guard let id = editingConnectionID, editor != nil else { return nil }
+        let scene = prepareScene()
+        guard let index = scene.incomingEdge[id] else { return nil }
+        return previewConnection(scene.edges[index], scene: scene)
+    }
+    private func previewConnection(_ edge: CanvasRenderEdge, scene: CanvasScene) -> CanvasRenderEdge {
+        let editing = editingConnectionID == edge.childID && editor != nil
+        guard editing || labelResize?.id == edge.childID else { return edge }
+        var style = edge.style
+        if let resize = labelResize, resize.id == edge.childID { style.labelWidth = resize.width; style.labelHeight = resize.height }
+        if editing, let editor {
+            let draft = String(editor.stringValue.prefix(500))
+            // Keep room for the insertion point while an empty label is being edited.
+            style.label = draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "M" : draft
+        }
+        let right = (scene.node(edge.childID)?.topic.x ?? edge.end.x) >= (scene.node(edge.parentID)?.topic.x ?? edge.start.x)
+        return CanvasRenderEdge(parentID: edge.parentID, childID: edge.childID, start: edge.start, end: edge.end, style: style, color: edge.color, right: right)
+    }
+    private func resumeLabelEditing(_ resize: LabelResize) {
+        guard let selection = resize.selection else { return }
+        editConnectionLabel(resize.id)
+        if let textView = editor?.currentEditor() as? NSTextView {
+            let length = (textView.string as NSString).length, location = min(selection.location, length)
+            textView.setSelectedRange(NSRange(location: location, length: min(selection.length, length - location)))
+        }
+    }
     func positionEditor() {
+        if let editor, editingConnectionID != nil, let edge = draftConnection() {
+            let padding = (editor.currentEditor() as? NSTextView)?.textContainer?.lineFragmentPadding ?? 0
+            editor.frame = screenRect(edge.labelTextRect).insetBy(dx: -padding, dy: -2)
+            return
+        }
         guard let editor, let id = editingID, let node = store.map.topic(id) else { return }
         let area = textRect(node)
         let lineHeight = node.font(scale: scale).ascender - node.font(scale: scale).descender + 4 * scale
@@ -330,21 +593,32 @@ struct CanvasHost: NSViewRepresentable {
             let text = editor.stringValue
             map.topics[index].title = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Idea" : String(text.prefix(10000))
         }
+        if let editor, let id = editingConnectionID, let index = map.topics.firstIndex(where: { $0.id == id }) {
+            var style = map.topics[index].connectionAppearance
+            style.label = String(editor.stringValue.prefix(500)); map.topics[index].connectionStyle = style
+        }
         return map
     }
     func finishEditing(cancel: Bool = false) {
 
-        guard let editor, let id = editingID else { return }
+        guard let editor, let id = editingConnectionID ?? editingID else { return }
+        let isConnection = editingConnectionID != nil
         let value = editor.stringValue
-        self.editor = nil; editingID = nil; editor.delegate = nil; editor.removeFromSuperview()
+        self.editor = nil; editingID = nil; editingConnectionID = nil; editor.delegate = nil; editor.removeFromSuperview()
         if let (textView, drawsBackground, backgroundColor) = fieldEditorBackground {
             textView.drawsBackground = drawsBackground; textView.backgroundColor = backgroundColor
             fieldEditorBackground = nil
         }
-        if !cancel { store.rename(id, title: value) }
+        if !cancel {
+            if isConnection { store.setConnectionLabel(id, text: value) }
+            else { store.rename(id, title: value) }
+        }
         needsDisplay = true
     }
-    func controlTextDidChange(_ obj: Notification) { positionEditor() }
+    func controlTextDidChange(_ obj: Notification) {
+        if editingConnectionID != nil, let editor, editor.stringValue.count > 500 { editor.stringValue = String(editor.stringValue.prefix(500)) }
+        positionEditor(); needsDisplay = true
+    }
     func controlTextDidBeginEditing(_ obj: Notification) {
         guard let editor, let textView = (editor.currentEditor() ?? window?.fieldEditor(true, for: editor)) as? NSTextView else { return }
         configureFieldEditor(textView)
@@ -352,16 +626,33 @@ struct CanvasHost: NSViewRepresentable {
     private func configureFieldEditor(_ textView: NSTextView) {
         if fieldEditorBackground == nil { fieldEditorBackground = (textView, textView.drawsBackground, textView.backgroundColor) }
         textView.drawsBackground = false; textView.backgroundColor = .clear
-        textView.insertionPointColor = store.selected.resolvedText
-        textView.typingAttributes = store.selected.textAttributes(scale: scale)
+        if let id = editingConnectionID, let node = store.map.topic(id) {
+            let style = node.connectionAppearance, color = style.labelColor.flatMap(NSColor.init(hex:)) ?? Palette.ink
+            textView.insertionPointColor = color
+            textView.typingAttributes = style.labelAppearance.textAttributes(color: color, scale: scale)
+        } else {
+            let node = editingID.flatMap { store.map.topic($0) } ?? store.selected ?? store.map.root
+            textView.insertionPointColor = node.resolvedText
+            textView.typingAttributes = node.textAttributes(scale: scale)
+        }
     }
     func controlTextDidEndEditing(_ obj: Notification) {
         finishEditing()
     }
     func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
         if selector == #selector(NSResponder.cancelOperation(_:)) { finishEditing(cancel: true); window?.makeFirstResponder(self); return true }
-        if selector == #selector(NSResponder.insertNewline(_:)) { finishEditing(); window?.makeFirstResponder(self); return true }
-        if selector == #selector(NSResponder.insertTab(_:)) { finishEditing(); store.addChild(); return true }
+        if selector == #selector(NSResponder.insertNewline(_:)) {
+            if editingConnectionID != nil && NSApp.currentEvent?.modifierFlags.contains(.shift) == true {
+                textView.insertText("\n", replacementRange: textView.selectedRange()); return true
+            }
+            finishEditing(); window?.makeFirstResponder(self); return true
+        }
+        if selector == #selector(NSResponder.insertTab(_:)) {
+            let wasConnection = editingConnectionID != nil
+            finishEditing()
+            if wasConnection { window?.makeFirstResponder(self) } else { store.addChild() }
+            return true
+        }
         return false
     }
     override func keyDown(with event: NSEvent) {
@@ -373,7 +664,10 @@ struct CanvasHost: NSViewRepresentable {
         case 36, 76: store.addSibling()
         case 51, 117: store.deleteSelection()
         case 49: spaceDown = true; window?.invalidateCursorRects(for: self)
-        case 53: finishEditing(cancel: true); store.selectedID = store.map.root.id; needsDisplay = true
+        case 53:
+            if let resize = labelResize { labelResize = nil; resumeLabelEditing(resize) }
+            else { finishEditing(cancel: true); store.clearSelection() }
+            needsDisplay = true
         default:
             if event.charactersIgnoringModifiers == "e" { editSelected() }
             else { super.keyDown(with: event) }
@@ -386,7 +680,8 @@ struct CanvasHost: NSViewRepresentable {
         if let editor { elements.append(editor) }
         let scene = prepareScene()
         let visible = visibleNodes(in: visibleWorldRect, scene: scene)
-        let validIDs = Set(visible.map { scene.nodes[$0].topic.id }).union(["handle-child", "handle-sibling"])
+        let labels = visibleEdges(in: visibleWorldRect, scene: scene).map { previewConnection(scene.edges[$0], scene: scene) }.filter { $0.label != nil && $0.style.labelFontSize * scale >= 6 && $0.labelRect.intersects(visibleWorldRect) }
+        let validIDs = Set(visible.map { scene.nodes[$0].topic.id }).union(["handle-child", "handle-sibling"]).union(labels.map { "connection-label-" + $0.childID })
         accessibleNodes = accessibleNodes.filter { validIDs.contains($0.key) }
         for index in visible {
             let node = scene.nodes[index].topic
@@ -398,7 +693,19 @@ struct CanvasHost: NSViewRepresentable {
             item.press = { [weak self] in self?.store.select(node.id) }
             elements.append(item)
         }
-        for handle in handles(store.selected) where handle.rect.intersects(bounds) {
+        for edge in labels {
+            let key = "connection-label-" + edge.childID
+            let item = accessibleNodes[key] ?? CanvasAccessibleElement(); accessibleNodes[key] = item
+            item.setAccessibilityParent(self); item.setAccessibilityRole(.button); item.setAccessibilityEnabled(true)
+            item.setAccessibilityLabel("Edit connection label: \(edge.style.label)")
+            item.setAccessibilityHelp("Click the text to edit the connection label in place.")
+            item.setAccessibilityFrame(window?.convertToScreen(convert(screenRect(edge.labelRect), to: nil)) ?? .zero)
+            item.press = { [weak self] in
+                self?.store.selectConnection(edge.childID); self?.editConnectionLabel(edge.childID)
+            }
+            elements.append(item)
+        }
+        for handle in store.selected.map({ handles($0) }) ?? [] where handle.rect.intersects(bounds) {
             let key = handle.sibling ? "handle-sibling" : "handle-child"
             let item = accessibleNodes[key] ?? CanvasAccessibleElement()
             accessibleNodes[key] = item

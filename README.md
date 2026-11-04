@@ -75,11 +75,23 @@ Select a topic to reveal its **+** controls. The upper control adds a child; the
 
 Double-click a sheet tab, or use its context menu, to rename it. Closing a sheet removes it from the workbook and can be undone. At least one sheet always remains.
 
+## Connection styles
+
+Click empty canvas space, press Escape outside a text edit, or use **Deselect** in the canvas toolbar to clear the current topic or connection selection. The inspector then shows **Nothing selected**. Dragging empty space still pans without clearing selection. Adding a topic with no selection creates a branch under the central topic.
+
+Click a connection to open **Connection** in the inspector. Click directly on its text to edit the label on the canvas: Enter commits, Escape cancels, and Shift-Enter adds a line break. You can also select a child topic and switch from **Topic** to **Connection**. Each line supports curved, straight or elbow geometry; solid, dashed or dotted strokes; width and RGBA color; and an optional arrow at either end. Clear a custom line color with **Use branch color** to follow the branch palette again.
+
+Enter any label text (up to 500 characters). Labels support the same text formatting as nodes: font family, size (8–96 pt), bold, italic, underline, strikethrough, alignment and color. Labels stay centered on the line while nodes move. **Reset text style** preserves the text and line settings; **Reset connection** restores the default curved line and clears its label. Changes apply to the selected incoming connection and support Undo/Redo. The central topic has no incoming connection.
+
+Text boxes initially fit their content without wrapping; explicit line breaks are preserved. When a label is selected, hover over its transparent box border to reveal a resize cursor. Left/right edges change width, top/bottom edges change height, and corners change both dimensions. Width changes control text wrapping; a fixed height clips overflowing text while preserving its full content. **Fit text automatically** in the inspector resets both dimensions to fit the text. Size changes survive Save/Open and support Undo/Redo. The selected connection keeps a thick halo that fades smoothly near label gaps.
+
+Native files and Nix Mind's exchange metadata preserve connection styles and labels. Other applications may ignore that metadata. These remain parent-to-child mind-map connections; arbitrary screen transitions, shared destinations and loops are described in the unimplemented [Flow mode proposal](docs/flow-mode-proposal.md).
+
 ## File formats
 
 | Format | Use | Sheets |
 | --- | --- | --- |
-| `.nixmap` | Native JSON workbook; preserves topic IDs, tree, positions, typography, appearance, direction, and notes | All sheets |
+| `.nixmap` | Native JSON workbook; preserves topic IDs, tree, positions, typography, appearance, connection styles and labels, direction, and notes | All sheets |
 | Mind map archive | ZIP/JSON exchange import and export | All sheets |
 | `.mm` | FreeMind XML import and export | One sheet; export uses the active sheet |
 

@@ -74,7 +74,7 @@ import SwiftUI
         canvas.setZoom(0.05)
         check(store.revealSearchResult(result) && !store.searchVisible && store.selectedID == "acronym", "Choosing a result closes search and selects its topic")
         check(canvas.scale >= 0.75, "Search navigation restores a readable canvas zoom")
-        let position = canvas.screen(store.selected.point)
+        let position = canvas.screen(store.selected!.point)
         check(abs(position.x - canvas.bounds.midX) < 1 && abs(position.y - canvas.bounds.midY) < 1, "Search centers the selected node")
         store.setMode(.outliner)
         canvas.keyDown(with: renameKey)

@@ -12,6 +12,7 @@ struct Topic: Codable, Identifiable, Equatable {
     var slot: Int?
     var style: TopicStyle?
     var structure: NodeStructure?
+    var connectionStyle: ConnectionStyle?
     var point: CGPoint { CGPoint(x: x, y: y) }
 }
 
@@ -139,7 +140,7 @@ struct MindMap: Codable, Equatable {
             frontier = next; depth += 1
         }
         guard visited.count == topics.count else { throw MapError.invalid }
-        for node in topics { try node.style?.validate() }
+        for node in topics { try node.style?.validate(); try node.connectionStyle?.validate() }
     }
 }
 

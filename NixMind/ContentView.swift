@@ -105,7 +105,7 @@ struct ContentView: View {
                 HStack(spacing: 5) { Circle().fill(mcp.running ? Color(nsColor: Palette.color(1)) : .gray).frame(width: 6, height: 6); Text("MCP").font(.system(size: 10, weight: .medium)) }
             }.buttonStyle(.plain).accessibilityLabel("MCP settings").help("Local MCP settings")
             Spacer()
-            if store.mode == .mindMap { Text("Drag to pan · Pinch to zoom · Double-click to rename").font(.system(size: 10)).foregroundStyle(.secondary) }
+            if store.mode == .mindMap { Text("Drag to pan · Pinch to zoom · Click a line to style").font(.system(size: 10)).foregroundStyle(.secondary) }
             else { Text("Return: sibling · Tab: indent · Shift-Tab: outdent").font(.system(size: 10)).foregroundStyle(.secondary) }
             HStack(spacing: 2) {
                 modeButton(.mindMap, title: "Mind map", image: "point.3.connected.trianglepath.dotted")
@@ -120,7 +120,7 @@ struct ContentView: View {
 
 /// Zoom ticks update this small view instead of rebuilding the topic list and inspector.
 private struct CanvasZoomControls: View {
-    let store: MapStore
+    @ObservedObject var store: MapStore
     @ObservedObject var viewport: CanvasViewport
     var body: some View {
         HStack(spacing: 0) {
@@ -130,6 +130,10 @@ private struct CanvasZoomControls: View {
             Divider().frame(height: 18).padding(.horizontal, 8)
             button("arrow.up.left.and.arrow.down.right", "Fit to window") { store.canvas?.fit() }
             button("scope", "Center on root") { store.canvas?.center(on: store.map.root.id) }
+            Divider().frame(height: 18).padding(.horizontal, 8)
+            Button("Deselect") { store.clearSelection() }
+                .font(.system(size: 11)).buttonStyle(.plain).padding(.horizontal, 7).frame(height: 30)
+                .disabled(store.selectedID == nil).help("Deselect all ⎋").accessibilityLabel("Deselect all")
         }.padding(6).background(.white, in: Capsule()).overlay(Capsule().stroke(Color.black.opacity(0.07))).shadow(color: .black.opacity(0.06), radius: 12, y: 4)
     }
     private func button(_ image: String, _ label: String, action: @escaping () -> Void) -> some View {

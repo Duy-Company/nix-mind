@@ -56,7 +56,7 @@ Protocol revision: **2025-11-25**, also negotiating 2025-06-18, 2025-03-26 and 2
 | --- | --- |
 | `list_documents` | Open files, session IDs, paths, edited status, sheet count and active sheet |
 | `list_sheets` | Stable sheet IDs, names, root IDs and topic counts |
-| `read_map` | A sheet's topic tree, style, structure, notes, positions, fingerprint and Markdown |
+| `read_map` | A sheet's topic tree, style, structure, notes, positions, fingerprint and Markdown; `selectedTopicID` is null when nothing is selected or the sheet is inactive |
 | `read_topic` | One topic, its ancestors and children |
 | `create_map` | New unsaved workbook |
 | `open_map` | Open a Nix Mind workbook or supported exchange file |

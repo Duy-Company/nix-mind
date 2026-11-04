@@ -69,6 +69,12 @@ import AppKit
         styled.topics[index].note = "Notes & <markup>\nAnother line"
         var appearance = TopicStyle(); appearance.fontFamily = "Georgia"; appearance.fontSize = 28; appearance.bold = true; appearance.italic = true; appearance.underline = true; appearance.strikethrough = true; appearance.alignment = .right; appearance.shape = .diamond; appearance.fillColor = "#224466DD"; appearance.textColor = "#FFFFEEFF"; appearance.borderColor = "#EF4466FF"; appearance.borderWidth = 4.5
         styled.topics[index].style = appearance; styled.topics[index].structure = .rightToLeft
+        var connection = ConnectionStyle(shape: .orthogonal, pattern: .dotted, width: 4.5, color: "#118866CC", start: .arrow, end: .arrow, label: "Đăng nhập thành công & <Tiếp tục> \"Bấm nút 1\"\n→ Màn B 🧭", labelFontSize: 19, labelColor: "#443322FF")
+        connection.labelFontFamily = "Georgia"; connection.labelBold = true; connection.labelItalic = true
+        connection.labelUnderline = true; connection.labelStrikethrough = true; connection.labelAlignment = .right
+        connection.labelWidth = 180
+        connection.labelHeight = 80
+        styled.topics[index].connectionStyle = connection
         try styled.validate()
         check(styled.topics[index].resolvedFill.hexString == "#224466DD", "RGBA fill is preserved exactly")
         check(styled.topics[index].textAttributes()[.underlineStyle] as? Int == NSUnderlineStyle.single.rawValue, "Underline is part of rendered text attributes")
@@ -78,7 +84,37 @@ import AppKit
         for type in [MapFormats.nativeType, MapFormats.archiveType, MapFormats.freeMindType] {
             let roundtrip = try MapFormats.decode(MapFormats.encode(styled, type: type), type: type)
             check(sameMap(roundtrip, styled), "\(type): full topic, Unicode, structure and style round-trip")
+            check(roundtrip.topic(child)?.connectionStyle == connection, "\(type): connection shape, pattern, width, RGBA, arrows and Unicode label survive round-trip")
         }
+        var legacyConnection = try JSONSerialization.jsonObject(with: JSONEncoder().encode(connection)) as! [String: Any]
+        for key in ["labelFontFamily", "labelBold", "labelItalic", "labelUnderline", "labelStrikethrough", "labelAlignment", "labelWidth", "labelHeight"] { legacyConnection.removeValue(forKey: key) }
+        let restoredConnection = try JSONDecoder().decode(ConnectionStyle.self, from: JSONSerialization.data(withJSONObject: legacyConnection))
+        check(restoredConnection.label == connection.label && restoredConnection.labelFontSize == 19 && restoredConnection.labelAppearance.fontFamily == "System" && !restoredConnection.labelAppearance.bold, "Earlier connection files keep custom text, size and color while new font settings default safely")
+        check(restoredConnection.labelWidth == nil, "Labels from previous builds default to fitting their content without automatic wrapping")
+        check(restoredConnection.labelHeight == nil, "Labels from previous builds keep automatic text height")
+        for width in [0, 23, 10001, Double.infinity, Double.nan] {
+            var invalid = connection; invalid.labelWidth = width
+            rejects("Invalid label container width is rejected: \(width)") { try invalid.validate() }
+        }
+        for height in [0, 7, 10001, Double.infinity, Double.nan] {
+            var invalid = connection; invalid.labelHeight = height
+            rejects("Invalid label container height is rejected: \(height)") { try invalid.validate() }
+        }
+        let labelAttributes = connection.labelAppearance.textAttributes(color: NSColor(hex: connection.labelColor!)!)
+        check((labelAttributes[.font] as? NSFont)?.pointSize == 19 && (labelAttributes[.font] as? NSFont)?.fontDescriptor.symbolicTraits.contains([.bold, .italic]) == true, "Connection labels share node font family, size, bold and italic rendering")
+        check(labelAttributes[.underlineStyle] as? Int == 1 && labelAttributes[.strikethroughStyle] as? Int == 1 && (labelAttributes[.paragraphStyle] as? NSParagraphStyle)?.alignment == .right, "Connection label attributes include underline, strikethrough and alignment")
+        let oldMap = try MapFormats.decode(Data("{\"version\":1,\"topics\":[{\"id\":\"root\",\"title\":\"Old map\",\"note\":\"\",\"x\":0,\"y\":0,\"color\":0},{\"id\":\"child\",\"parentID\":\"root\",\"title\":\"Child\",\"note\":\"\",\"x\":300,\"y\":0,\"color\":1}]}".utf8), type: MapFormats.nativeType)
+        check(oldMap.topics[1].connectionStyle == nil && oldMap.topics[1].connectionAppearance == ConnectionStyle(), "Files without connection metadata keep the legacy curved branch-colored line")
+        for width in [0, -1, 13, Double.infinity, Double.nan] {
+            var invalid = connection; invalid.width = width
+            rejects("Invalid connection width is rejected: \(width)") { try invalid.validate() }
+        }
+        var invalidConnection = connection; invalidConnection.label = String(repeating: "a", count: 501)
+        rejects("Oversized connection labels are rejected") { try invalidConnection.validate() }
+        invalidConnection = connection; invalidConnection.labelFontSize = 100
+        rejects("Invalid connection label font size is rejected") { try invalidConnection.validate() }
+        invalidConnection = connection; invalidConnection.color = "invalid"
+        rejects("Invalid connection colors are rejected") { try invalidConnection.validate() }
         var book = MindBook(map: styled)
         let other = MapSheet(title: "Research", map: .blank()); book.sheets.append(other); book.activeSheetID = other.id
         for type in [MapFormats.nativeType, MapFormats.archiveType] {
