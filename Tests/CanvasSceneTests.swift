@@ -204,6 +204,28 @@ import SwiftUI
         }
         let rightToLeft = CanvasRenderEdge(parentID: "a", childID: "b", start: CGPoint(x: 200, y: 30), end: CGPoint(x: -200, y: -60), style: ConnectionStyle(shape: .orthogonal, start: .arrow, end: .arrow, label: "No"), color: .red)
         check(rightToLeft.markers.count == 2 && rightToLeft.contains(CGPoint(x: 0, y: -15), tolerance: 2), "Right-to-left elbow lines support two arrows and a centered label")
+        for shape in ConnectionShape.allCases {
+            for direction in [-1.0, 1.0] {
+                for position in ConnectionArrowPosition.allCases {
+                    var style = ConnectionStyle(shape: shape); style.arrowPosition = position
+                    let edge = CanvasRenderEdge(parentID: "a", childID: "b", start: .zero, end: CGPoint(x: 300 * direction, y: 180), style: style, color: .red)
+                    let expectedTips: [CGPoint]
+                    switch position {
+                    case .none: expectedTips = []
+                    case .start: expectedTips = [edge.start]
+                    case .end: expectedTips = [edge.end]
+                    case .both: expectedTips = [edge.start, edge.end]
+                    }
+                    precondition(edge.markers.count == expectedTips.count)
+                    for (marker, tip) in zip(edge.markers, expectedTips) {
+                        var points = [CGPoint](repeating: .zero, count: 3)
+                        _ = marker.element(at: 0, associatedPoints: &points)
+                        precondition(points[0] == tip && (0..<marker.elementCount).contains { marker.element(at: $0) == .closePath })
+                    }
+                }
+            }
+        }
+        check(true, "All four arrow positions render at the correct endpoints for every line shape in both directions, preserving filled arrowheads")
         let curved = CanvasRenderEdge(parentID: "a", childID: "b", start: .zero, end: CGPoint(x: 300, y: 180), style: ConnectionStyle(), color: .red)
         check(curved.contains(CGPoint(x: 150, y: 90), tolerance: 2) && !curved.contains(CGPoint(x: 150, y: 160), tolerance: 2), "Curve hit testing follows the curve instead of its bounding rectangle")
         var overlapMap = samples

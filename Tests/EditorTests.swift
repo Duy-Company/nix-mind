@@ -58,6 +58,20 @@ import AppKit
         check(store.map == beforeConnection, "One Undo restores all connection formatting and text")
         document.undoManager?.redo()
         check(store.map == connected, "Redo restores connection formatting and text")
+        for position in ConnectionArrowPosition.allCases {
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.03))
+            let beforePosition = store.map
+            store.setConnectionStyle { $0.arrowPosition = position }
+            var expectedStyle = beforePosition.topic(child)!.connectionAppearance
+            expectedStyle.start = position == .start || position == .both ? .arrow : .none
+            expectedStyle.end = position == .end || position == .both ? .arrow : .none
+            check(store.selected!.connectionAppearance == expectedStyle && store.map.root == beforePosition.root, "Arrow position \(position) updates only the selected line endings")
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.03)); document.undoManager?.undo()
+            check(store.map == beforePosition, "Undo restores the previous arrow position after choosing \(position)")
+            document.undoManager?.redo()
+            check(store.selected!.connectionAppearance == expectedStyle, "Redo restores arrow position \(position)")
+        }
+        store.apply(connected, action: "Restore connection after arrow position checks")
         store.setConnectionStyle { $0.labelAppearance = ConnectionStyle().labelAppearance }
         check(store.selected!.connectionAppearance.label == "Đăng nhập → mở màn hình chính" && store.selected!.connectionAppearance.shape == .orthogonal && store.selected!.connectionAppearance.labelAppearance.fontSize == 13 && !store.selected!.connectionAppearance.labelAppearance.bold, "Reset text style keeps arbitrary label content and line formatting")
         store.apply(connected, action: "Restore styled label")

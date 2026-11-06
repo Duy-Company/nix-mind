@@ -86,6 +86,14 @@ import AppKit
             check(sameMap(roundtrip, styled), "\(type): full topic, Unicode, structure and style round-trip")
             check(roundtrip.topic(child)?.connectionStyle == connection, "\(type): connection shape, pattern, width, RGBA, arrows and Unicode label survive round-trip")
         }
+        for position in ConnectionArrowPosition.allCases {
+            var positioned = styled
+            positioned.topics[index].connectionStyle?.arrowPosition = position
+            for type in [MapFormats.nativeType, MapFormats.archiveType, MapFormats.freeMindType] {
+                let restored = try MapFormats.decode(MapFormats.encode(positioned, type: type), type: type)
+                check(restored.topic(child)?.connectionAppearance.arrowPosition == position, "\(type): arrow position \(position) survives Save/Open")
+            }
+        }
         var legacyConnection = try JSONSerialization.jsonObject(with: JSONEncoder().encode(connection)) as! [String: Any]
         for key in ["labelFontFamily", "labelBold", "labelItalic", "labelUnderline", "labelStrikethrough", "labelAlignment", "labelWidth", "labelHeight"] { legacyConnection.removeValue(forKey: key) }
         let restoredConnection = try JSONDecoder().decode(ConnectionStyle.self, from: JSONSerialization.data(withJSONObject: legacyConnection))

@@ -28,12 +28,10 @@ struct ConnectionInspector: View {
                     if appearance.color != nil {
                         Button("Use branch color") { store.setConnectionStyle { $0.color = nil } }.buttonStyle(.plain).foregroundStyle(accent)
                     }
-                    Picker("Start", selection: style(\.start)) {
-                        ForEach(ConnectionEnding.allCases, id: \.self) { Text($0.title).tag($0) }
-                    }.accessibilityLabel("Connection start")
-                    Picker("End", selection: style(\.end)) {
-                        ForEach(ConnectionEnding.allCases, id: \.self) { Text($0.title).tag($0) }
-                    }.accessibilityLabel("Connection end")
+                    Picker("Arrow position", selection: style(\.arrowPosition)) {
+                        ForEach(ConnectionArrowPosition.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }.accessibilityLabel("Connection arrow position")
+                        .help("None hides both arrows. Start is at the parent topic; End is at the child topic.")
                 }
                 section("LABEL") {
                     TextField("Connection text", text: style(\.label), axis: .vertical)

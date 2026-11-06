@@ -24,6 +24,21 @@ struct ConnectionStyle: Codable, Equatable {
     static let labelWidthRange = 24.0...10000.0
     static let labelHeightRange = 8.0...10000.0
 
+    var arrowPosition: ConnectionArrowPosition {
+        get {
+            switch (start, end) {
+            case (.none, .none): return .none
+            case (.arrow, .none): return .start
+            case (.none, .arrow): return .end
+            case (.arrow, .arrow): return .both
+            }
+        }
+        set {
+            start = newValue == .start || newValue == .both ? .arrow : .none
+            end = newValue == .end || newValue == .both ? .arrow : .none
+        }
+    }
+
     var labelAppearance: TopicStyle {
         get {
             var text = TopicStyle()
@@ -78,6 +93,17 @@ enum ConnectionPattern: String, Codable, CaseIterable {
 enum ConnectionEnding: String, Codable, CaseIterable {
     case none, arrow
     var title: String { self == .none ? "None" : "Arrow" }
+}
+enum ConnectionArrowPosition: String, CaseIterable {
+    case none, start, end, both
+    var title: String {
+        switch self {
+        case .none: return "None"
+        case .start: return "Start"
+        case .end: return "End"
+        case .both: return "Both ends"
+        }
+    }
 }
 
 extension Topic {
